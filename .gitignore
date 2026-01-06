@@ -1,0 +1,62 @@
+# Claude Code local settings (may contain personal preferences)
+.claude/
+
+# Dependencies
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.kotlin/
+
+# Metro
+.metro-health-check*
+
+# macOS
+.DS_Store
+*.pem
+
+# Local env files
+.env
+.env*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Generated native folders
+/frontend/ios
+/frontend/android
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+
+# Supabase
+/backend/.branches
+/backend/.temp
+/backend/supabase/.temp/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db

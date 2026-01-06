@@ -1,0 +1,222 @@
+# ==========================================
+# SECURITY - NEVER COMMIT THESE FILES
+# ==========================================
+
+# Environment variables (contains Supabase URLs, API keys, secrets)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+.env.staging
+
+# Any files containing secrets or credentials
+*secret*
+*credentials*
+*.key
+*.pem
+*.p12
+*.p8
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# ==========================================
+# DEPENDENCIES
+# ==========================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# ==========================================
+# EXPO & REACT NATIVE
+# ==========================================
+
+# Expo
+.expo/
+.expo-shared/
+expo-env.d.ts
+web-build/
+dist/
+
+# Metro bundler
+.metro-health-check*
+
+# Generated native code (can be regenerated)
+ios/
+android/
+
+# EAS
+.eas/
+
+# ==========================================
+# TYPESCRIPT
+# ==========================================
+
+*.tsbuildinfo
+.tsbuildinfo
+
+# ==========================================
+# TESTING & COVERAGE
+# ==========================================
+
+coverage/
+.coverage
+*.lcov
+.nyc_output/
+junit.xml
+
+# ==========================================
+# IDE & EDITOR FILES
+# ==========================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# OS SPECIFIC
+# ==========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ==========================================
+# LOGS
+# ==========================================
+
+*.log
+logs/
+*.log.*
+
+# ==========================================
+# WATERMELONDB
+# ==========================================
+
+# WatermelonDB build files
+*.db
+*.db-shm
+*.db-wal
+
+# ==========================================
+# KOTLIN (Android)
+# ==========================================
+
+.kotlin/
+*.kotlin_module
+
+# ==========================================
+# BUILD & CACHE
+# ==========================================
+
+build/
+.gradle/
+.cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ==========================================
+# NATIVE SIGNING & CERTIFICATES
+# ==========================================
+
+# iOS
+*.cer
+*.certSigningRequest
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# Android
+*.jks
+*.keystore
+key.properties
+release-keystore.jks
+debug.keystore
+
+# ==========================================
+# BACKUPS
+# ==========================================
+
+*.bak
+*.backup
+*.old
+*.orig
+
+# ==========================================
+# MISC
+# ==========================================
+
+# Sentry
+.sentryclirc
+
+# Bundle artifact
+*.jsbundle
+
+# CocoaPods
+ios/Pods/
+ios/Podfile.lock

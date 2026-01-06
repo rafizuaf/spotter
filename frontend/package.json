@@ -1,0 +1,39 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@nozbe/watermelondb": "^0.28.0",
+    "@supabase/supabase-js": "^2.89.0",
+    "expo": "~54.0.30",
+    "expo-constants": "^18.0.12",
+    "expo-linking": "^8.0.11",
+    "expo-notifications": "^0.32.15",
+    "expo-router": "^6.0.21",
+    "expo-secure-store": "^15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.2.3",
+    "react-native": "0.81.5",
+    "react-native-reanimated": "^4.2.1",
+    "uuid": "^13.0.0",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.2.3",
+    "@types/uuid": "^10.0.0",
+    "jest": "^30.2.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
