@@ -1,6 +1,16 @@
 # Claude Code local settings (may contain personal preferences)
 .claude/
 
+# Markdown files - Always excluded from repository
+*.md
+*.markdown
+*.mdown
+*.mkdn
+*.mkd
+*.mdwn
+*.mdtxt
+*.mdtext
+
 # Dependencies
 node_modules/
 npm-debug.*
