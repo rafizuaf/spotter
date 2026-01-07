@@ -15,6 +15,8 @@ const SYNC_TABLES = [
   'user_body_logs',
   'user_levels',
   'user_badges',
+  'user_xp_logs',
+  'achievements', // Read-only from backend
 ];
 
 interface SyncPullResponse {
