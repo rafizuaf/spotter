@@ -7,6 +7,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     home: '🏠',
     workout: '💪',
     history: '📊',
+    feed: '🌟',
     routines: '📋',
     profile: '👤',
   };
@@ -64,6 +65,14 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ focused }) => <TabIcon name="history" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="feed"
+        options={{
+          title: 'Feed',
+          tabBarIcon: ({ focused }) => <TabIcon name="feed" focused={focused} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
