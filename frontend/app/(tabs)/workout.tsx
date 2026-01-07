@@ -49,7 +49,26 @@ export default function WorkoutScreen() {
   const handleFinishWorkout = async () => {
     const result = await finishWorkout();
     if (result.success) {
-      Alert.alert('Success', 'Workout saved successfully!');
+      // Build success message with gamification results
+      const { gamification } = result;
+      let message = 'Workout saved successfully!\n\n';
+
+      if (gamification) {
+        if (gamification.xpAwarded > 0) {
+          message += `+${gamification.xpAwarded} XP earned\n`;
+        }
+        if (gamification.levelUp && gamification.newLevel > 0) {
+          message += `🎉 Level Up! You're now level ${gamification.newLevel}\n`;
+        }
+        if (gamification.prCount > 0) {
+          message += `🏆 ${gamification.prCount} new personal record${gamification.prCount > 1 ? 's' : ''}!\n`;
+        }
+        if (gamification.badgesUnlocked > 0) {
+          message += `🎖️ ${gamification.badgesUnlocked} badge${gamification.badgesUnlocked > 1 ? 's' : ''} unlocked!\n`;
+        }
+      }
+
+      Alert.alert('Workout Complete!', message.trim());
     } else {
       Alert.alert('Error', result.error || 'Failed to save workout');
     }

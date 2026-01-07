@@ -269,17 +269,55 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         // Don't fail the workout save if sync fails - it will sync later
       }
 
-      // Call award-xp function
+      // Gamification results
+      let xpAwarded = 0;
+      let levelUp = false;
+      let newLevel = 0;
+      let prCount = 0;
+      let badgesUnlocked = 0;
+
+      // Call gamification functions
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          await supabase.functions.invoke('award-xp', {
+          // 1. Award XP
+          const { data: xpData } = await supabase.functions.invoke('award-xp', {
             body: { workoutId: workoutServerId },
           });
+          xpAwarded = xpData?.xpAwarded || 0;
+
+          // 2. Calculate level
+          const { data: levelData } = await supabase.functions.invoke('calculate-level', {
+            body: { userId: user.id },
+          });
+          if (levelData?.success) {
+            newLevel = levelData.level;
+            // Check if leveled up (simple check - could be improved)
+            levelUp = xpAwarded > 0 && levelData.level > 1;
+          }
+
+          // 3. Detect PRs
+          const { data: prData } = await supabase.functions.invoke('detect-pr', {
+            body: { workoutId: workoutServerId },
+          });
+          prCount = prData?.prCount || 0;
+
+          // 4. Unlock badges
+          const { data: badgeData } = await supabase.functions.invoke('unlock-badge', {
+            body: { userId: user.id },
+          });
+          badgesUnlocked = badgeData?.badgeCount || 0;
+
+          // 5. Sync updated data from server
+          try {
+            await syncDatabase();
+          } catch (finalSyncError) {
+            console.warn('Final sync failed:', finalSyncError);
+          }
         }
-      } catch (xpError) {
-        console.warn('XP award failed:', xpError);
-        // Don't fail the workout save if XP fails
+      } catch (gamificationError) {
+        console.warn('Gamification functions failed:', gamificationError);
+        // Don't fail the workout save if gamification fails
       }
 
       // Reset workout state
@@ -294,7 +332,17 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         routineOriginId: null,
       });
 
-      return { success: true, workoutId: workoutServerId };
+      return {
+        success: true,
+        workoutId: workoutServerId,
+        gamification: {
+          xpAwarded,
+          levelUp,
+          newLevel,
+          prCount,
+          badgesUnlocked,
+        },
+      };
     } catch (error) {
       console.error('Error finishing workout:', error);
       return {
