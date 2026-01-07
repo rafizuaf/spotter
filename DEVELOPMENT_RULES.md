@@ -152,12 +152,15 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 ### Commit Checklist
 
 Before committing, ensure:
+- [ ] **Update `.claude/todo.md`** - Mark completed tasks with `[x]` and update progress percentages
 - [ ] TypeScript compiles with no errors (`npx tsc --noEmit`)
 - [ ] No `any` types introduced
 - [ ] Code follows existing patterns
 - [ ] Tests added/updated (if applicable)
 - [ ] No console.logs left in production code
 - [ ] Follows CLAUDE.md architecture principles
+
+**CRITICAL:** Always update `.claude/todo.md` BEFORE committing to track progress accurately.
 
 ## Architecture Guidelines (from CLAUDE.md)
 
