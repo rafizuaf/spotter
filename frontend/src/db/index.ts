@@ -14,6 +14,9 @@ import type WorkoutSet from './models/WorkoutSet';
 import type UserBodyLog from './models/UserBodyLog';
 import type UserLevel from './models/UserLevel';
 import type UserBadge from './models/UserBadge';
+import type Follow from './models/Follow';
+import type UserBlock from './models/UserBlock';
+import type SocialPost from './models/SocialPost';
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
@@ -44,5 +47,8 @@ export const workoutSetsCollection = database.get<WorkoutSet>('workout_sets');
 export const userBodyLogsCollection = database.get<UserBodyLog>('user_body_logs');
 export const userLevelsCollection = database.get<UserLevel>('user_levels');
 export const userBadgesCollection = database.get<UserBadge>('user_badges');
+export const followsCollection = database.get<Follow>('follows');
+export const userBlocksCollection = database.get<UserBlock>('user_blocks');
+export const socialPostsCollection = database.get<SocialPost>('social_posts');
 
 export default database;

@@ -224,6 +224,20 @@ export const schema = appSchema({
       ],
     }),
 
+    tableSchema({
+      name: 'social_posts',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'workout_id', type: 'string', isOptional: true },
+        { name: 'achievement_code', type: 'string', isOptional: true },
+        { name: 'generated_headline', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
     // ============================================
     // Gamification
     // ============================================

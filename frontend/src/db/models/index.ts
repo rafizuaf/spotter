@@ -11,6 +11,9 @@ import UserLevel from './UserLevel';
 import UserBadge from './UserBadge';
 import UserXpLog from './UserXpLog';
 import Achievement from './Achievement';
+import Follow from './Follow';
+import UserBlock from './UserBlock';
+import SocialPost from './SocialPost';
 
 export {
   User,
@@ -26,6 +29,9 @@ export {
   UserBadge,
   UserXpLog,
   Achievement,
+  Follow,
+  UserBlock,
+  SocialPost,
 };
 
 export const modelClasses = [
@@ -42,4 +48,7 @@ export const modelClasses = [
   UserBadge,
   UserXpLog,
   Achievement,
+  Follow,
+  UserBlock,
+  SocialPost,
 ];

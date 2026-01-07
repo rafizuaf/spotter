@@ -1,6 +1,9 @@
 # Claude Code local settings (may contain personal preferences)
 .claude/
 
+# Cursor Code local settings (may contain personal preferences)
+.cursor/
+
 # Markdown files - Always excluded from repository
 *.md
 *.markdown
