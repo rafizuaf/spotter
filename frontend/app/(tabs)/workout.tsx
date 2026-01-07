@@ -16,6 +16,7 @@ export default function WorkoutScreen() {
     isActive,
     workoutName,
     workoutNote,
+    visibility,
     exercises,
     startWorkout,
     addExercise,
@@ -26,6 +27,7 @@ export default function WorkoutScreen() {
     toggleSetComplete,
     updateWorkoutName,
     updateWorkoutNote,
+    updateVisibility,
     finishWorkout,
     cancelWorkout,
   } = useWorkoutStore();
@@ -107,6 +109,62 @@ export default function WorkoutScreen() {
           placeholderTextColor="#64748b"
           multiline
         />
+
+        {/* Visibility Picker */}
+        <View style={styles.visibilityContainer}>
+          <Text style={styles.visibilityLabel}>Visibility:</Text>
+          <View style={styles.visibilityButtons}>
+            <TouchableOpacity
+              style={[
+                styles.visibilityButton,
+                visibility === 'PUBLIC' && styles.visibilityButtonActive,
+              ]}
+              onPress={() => updateVisibility('PUBLIC')}
+            >
+              <Text
+                style={[
+                  styles.visibilityButtonText,
+                  visibility === 'PUBLIC' && styles.visibilityButtonTextActive,
+                ]}
+              >
+                Public
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.visibilityButton,
+                visibility === 'FOLLOWERS' && styles.visibilityButtonActive,
+              ]}
+              onPress={() => updateVisibility('FOLLOWERS')}
+            >
+              <Text
+                style={[
+                  styles.visibilityButtonText,
+                  visibility === 'FOLLOWERS' && styles.visibilityButtonTextActive,
+                ]}
+              >
+                Followers
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.visibilityButton,
+                visibility === 'PRIVATE' && styles.visibilityButtonActive,
+              ]}
+              onPress={() => updateVisibility('PRIVATE')}
+            >
+              <Text
+                style={[
+                  styles.visibilityButtonText,
+                  visibility === 'PRIVATE' && styles.visibilityButtonTextActive,
+                ]}
+              >
+                Private
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
           <Text style={styles.finishButtonText}>Finish Workout</Text>
         </TouchableOpacity>
@@ -274,6 +332,39 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 12,
     minHeight: 60,
+  },
+  visibilityContainer: {
+    marginBottom: 12,
+  },
+  visibilityLabel: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginBottom: 8,
+  },
+  visibilityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  visibilityButton: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#334155',
+  },
+  visibilityButtonActive: {
+    backgroundColor: '#6366f1',
+    borderColor: '#6366f1',
+  },
+  visibilityButtonText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  visibilityButtonTextActive: {
+    color: '#fff',
   },
   finishButton: {
     backgroundColor: '#22c55e',

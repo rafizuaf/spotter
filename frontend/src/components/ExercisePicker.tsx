@@ -8,9 +8,12 @@ import {
   TextInput,
   FlatList,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
-import { exercisesCollection } from '../db';
+import { database, exercisesCollection } from '../db';
+import { useAuthStore } from '../stores/authStore';
+import { v4 as uuid } from 'uuid';
 import type Exercise from '../db/models/Exercise';
 
 interface ExercisePickerProps {
@@ -35,11 +38,18 @@ export default function ExercisePicker({
   onClose,
   onSelectExercise,
 }: ExercisePickerProps) {
+  const { user } = useAuthStore();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('All');
   const [loading, setLoading] = useState(true);
+
+  // Custom exercise creation state
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [customExerciseName, setCustomExerciseName] = useState('');
+  const [customMuscleGroup, setCustomMuscleGroup] = useState('Chest');
+  const [customInstructions, setCustomInstructions] = useState('');
 
   useEffect(() => {
     if (visible) {
@@ -94,6 +104,55 @@ export default function ExercisePicker({
     onClose();
   };
 
+  const handleCreateCustomExercise = async () => {
+    if (!customExerciseName.trim()) {
+      Alert.alert('Error', 'Please enter an exercise name');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create custom exercises');
+      return;
+    }
+
+    try {
+      const serverId = uuid();
+
+      await database.write(async () => {
+        const newExercise = await exercisesCollection.create((exercise) => {
+          exercise.serverId = serverId;
+          exercise.name = customExerciseName.trim();
+          exercise.muscleGroup = customMuscleGroup;
+          exercise.instructions = customInstructions.trim() || undefined;
+          exercise.isCustom = true;
+          exercise.createdByUserId = user.id;
+        });
+
+        // Immediately select the newly created exercise
+        onSelectExercise(newExercise.serverId, newExercise.name);
+      });
+
+      // Reset form and close
+      setCustomExerciseName('');
+      setCustomMuscleGroup('Chest');
+      setCustomInstructions('');
+      setShowCreateForm(false);
+      setSearchQuery('');
+      setSelectedMuscleGroup('All');
+      onClose();
+    } catch (error) {
+      console.error('Error creating custom exercise:', error);
+      Alert.alert('Error', 'Failed to create custom exercise');
+    }
+  };
+
+  const handleCancelCreate = () => {
+    setCustomExerciseName('');
+    setCustomMuscleGroup('Chest');
+    setCustomInstructions('');
+    setShowCreateForm(false);
+  };
+
   const renderExerciseItem = ({ item }: { item: Exercise }) => (
     <TouchableOpacity
       style={styles.exerciseItem}
@@ -119,19 +178,95 @@ export default function ExercisePicker({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Exercise</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Text style={styles.modalTitle}>
+              {showCreateForm ? 'Create Custom Exercise' : 'Select Exercise'}
+            </Text>
+            <TouchableOpacity onPress={showCreateForm ? handleCancelCreate : onClose}>
               <Text style={styles.closeButton}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search exercises..."
-            placeholderTextColor="#64748b"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          {!showCreateForm && (
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => setShowCreateForm(true)}
+            >
+              <Text style={styles.createButtonText}>+ Create Custom Exercise</Text>
+            </TouchableOpacity>
+          )}
+
+          {showCreateForm ? (
+            <View style={styles.createFormContainer}>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Exercise Name *"
+                placeholderTextColor="#64748b"
+                value={customExerciseName}
+                onChangeText={setCustomExerciseName}
+              />
+
+              <Text style={styles.formLabel}>Muscle Group</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.muscleGroupScroll}
+                contentContainerStyle={styles.muscleGroupContent}
+              >
+                {MUSCLE_GROUPS.filter((g) => g !== 'All').map((group) => (
+                  <TouchableOpacity
+                    key={group}
+                    style={[
+                      styles.muscleGroupChip,
+                      customMuscleGroup === group && styles.muscleGroupChipActive,
+                    ]}
+                    onPress={() => setCustomMuscleGroup(group)}
+                  >
+                    <Text
+                      style={[
+                        styles.muscleGroupText,
+                        customMuscleGroup === group && styles.muscleGroupTextActive,
+                      ]}
+                    >
+                      {group}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TextInput
+                style={[styles.formInput, styles.instructionsInput]}
+                placeholder="Instructions (optional)"
+                placeholderTextColor="#64748b"
+                value={customInstructions}
+                onChangeText={setCustomInstructions}
+                multiline
+                numberOfLines={4}
+              />
+
+              <View style={styles.formButtons}>
+                <TouchableOpacity
+                  style={styles.cancelFormButton}
+                  onPress={handleCancelCreate}
+                >
+                  <Text style={styles.cancelFormButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveFormButton}
+                  onPress={handleCreateCustomExercise}
+                >
+                  <Text style={styles.saveFormButtonText}>Create & Add</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search exercises..."
+                placeholderTextColor="#64748b"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
 
           <ScrollView
             horizontal
@@ -162,25 +297,27 @@ export default function ExercisePicker({
             ))}
           </ScrollView>
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Loading exercises...</Text>
-            </View>
-          ) : filteredExercises.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No exercises found</Text>
-              <Text style={styles.emptySubtext}>
-                Try adjusting your search or filter
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={filteredExercises}
-              renderItem={renderExerciseItem}
-              keyExtractor={(item) => item.id}
-              style={styles.exerciseList}
-              contentContainerStyle={styles.exerciseListContent}
-            />
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Loading exercises...</Text>
+                </View>
+              ) : filteredExercises.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No exercises found</Text>
+                  <Text style={styles.emptySubtext}>
+                    Try adjusting your search or filter
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredExercises}
+                  renderItem={renderExerciseItem}
+                  keyExtractor={(item) => item.id}
+                  style={styles.exerciseList}
+                  contentContainerStyle={styles.exerciseListContent}
+                />
+              )}
+            </>
           )}
         </View>
       </View>
@@ -217,6 +354,69 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#94a3b8',
     fontWeight: '300',
+  },
+  createButton: {
+    backgroundColor: '#6366f1',
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  createFormContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  formInput: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    color: '#fff',
+    fontSize: 16,
+  },
+  formLabel: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginBottom: 8,
+  },
+  instructionsInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  formButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelFormButton: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelFormButtonText: {
+    color: '#94a3b8',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveFormButton: {
+    flex: 1,
+    backgroundColor: '#6366f1',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  saveFormButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   searchInput: {
     backgroundColor: '#1e293b',
