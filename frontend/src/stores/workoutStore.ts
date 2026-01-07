@@ -27,6 +27,14 @@ export interface ExerciseEntry {
   sets: WorkoutSet[];
 }
 
+interface GamificationResult {
+  xpAwarded: number;
+  levelUp: boolean;
+  newLevel: number;
+  prCount: number;
+  badgesUnlocked: number;
+}
+
 interface WorkoutState {
   // State
   isActive: boolean;
@@ -49,7 +57,12 @@ interface WorkoutState {
   updateWorkoutName: (name: string) => void;
   updateWorkoutNote: (note: string) => void;
   updateVisibility: (visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => void;
-  finishWorkout: () => Promise<{ success: boolean; workoutId?: string; error?: string }>;
+  finishWorkout: () => Promise<{
+    success: boolean;
+    workoutId?: string;
+    error?: string;
+    gamification?: GamificationResult;
+  }>;
   cancelWorkout: () => void;
 }
 

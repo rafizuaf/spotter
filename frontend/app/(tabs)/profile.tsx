@@ -10,10 +10,18 @@ import type UserLevel from '../../src/db/models/UserLevel';
 import type UserBadge from '../../src/db/models/UserBadge';
 import type Achievement from '../../src/db/models/Achievement';
 
+interface BadgeWithAchievement {
+  id: string;
+  achievementCode: string;
+  earnedAt: Date;
+  isRusty: boolean;
+  achievement?: Achievement;
+}
+
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
-  const [badges, setBadges] = useState<Array<UserBadge & { achievement?: Achievement }>>([]);
+  const [badges, setBadges] = useState<BadgeWithAchievement[]>([]);
   const [prCount, setPrCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +58,13 @@ export default function ProfileScreen() {
               .fetch()
               .then((achievements) => achievements[0] as Achievement || undefined);
 
-            return { ...typedBadge, achievement };
+            return {
+              id: typedBadge.id,
+              achievementCode: typedBadge.achievementCode,
+              earnedAt: typedBadge.earnedAt,
+              isRusty: typedBadge.isRusty,
+              achievement,
+            };
           })
         );
         setBadges(badgesWithAchievements);
