@@ -321,7 +321,22 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           });
           badgesUnlocked = badgeData?.badgeCount || 0;
 
-          // 5. Sync updated data from server
+          // 5. Create social post (if visibility allows)
+          if (state.visibility !== 'PRIVATE') {
+            try {
+              await supabase.functions.invoke('create-social-post', {
+                body: {
+                  workoutId: workoutServerId,
+                  visibility: state.visibility,
+                },
+              });
+            } catch (postError) {
+              console.warn('Failed to create social post:', postError);
+              // Don't fail if social post creation fails
+            }
+          }
+
+          // 6. Sync updated data from server
           try {
             await syncDatabase();
           } catch (finalSyncError) {
