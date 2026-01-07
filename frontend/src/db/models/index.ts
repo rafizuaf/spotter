@@ -9,6 +9,8 @@ import WorkoutSet from './WorkoutSet';
 import UserBodyLog from './UserBodyLog';
 import UserLevel from './UserLevel';
 import UserBadge from './UserBadge';
+import UserXpLog from './UserXpLog';
+import Achievement from './Achievement';
 
 export {
   User,
@@ -22,6 +24,8 @@ export {
   UserBodyLog,
   UserLevel,
   UserBadge,
+  UserXpLog,
+  Achievement,
 };
 
 export const modelClasses = [
@@ -36,4 +40,6 @@ export const modelClasses = [
   UserBodyLog,
   UserLevel,
   UserBadge,
+  UserXpLog,
+  Achievement,
 ];
