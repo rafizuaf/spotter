@@ -8,6 +8,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "spotter",
+    "owner": "rafizuaf",
+    "extra": {
+      "eas": {
+        "projectId": "b271bad3-0aa2-480e-af68-ae8e996f35dc"
+      }
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +21,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.spotter.app"
+      "bundleIdentifier": "com.spotter.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

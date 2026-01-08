@@ -1,14 +1,10 @@
 module.exports = {
-  preset: 'react-native',
+  testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?react-native|@react-native|expo|@expo|@unimodules|@nozbe/watermelondb|@supabase)',
-  ],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
-  testMatch: ['**/__tests__/**/*.test.(ts|tsx|js)'],
+  moduleFileExtensions: ['js', 'jsx', 'json'],
+  testMatch: ['**/__tests__/**/*.test.js'],
+  transform: {},
   collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/db/models/index.ts',
+    'src/**/*.{js,jsx}',
   ],
 };
