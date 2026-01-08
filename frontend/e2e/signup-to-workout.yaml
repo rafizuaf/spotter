@@ -1,0 +1,109 @@
+appId: com.spotter.app
+---
+# E2E Test: Complete User Journey - Signup to First Workout
+# This test covers the critical path from new user signup through completing their first workout
+
+# Navigate to signup screen
+- launchApp:
+    clearState: true
+
+- assertVisible: "Login"
+
+- tapOn: "Sign up"
+
+# Fill signup form
+- assertVisible: "Create Account"
+
+- tapOn:
+    id: "email-input"
+- inputText: "e2etest${random.number(1000, 9999)}@example.com"
+
+- tapOn:
+    id: "password-input"
+- inputText: "TestPassword123!"
+
+- tapOn:
+    id: "confirm-password-input"
+- inputText: "TestPassword123!"
+
+- tapOn:
+    id: "username-input"
+- inputText: "e2euser${random.number(1000, 9999)}"
+
+- tapOn: "Create Account"
+
+# Wait for signup and navigation to main app
+- extendedWaitUntil:
+    visible: "Workout"
+    timeout: 15000
+
+# Start a new workout
+- assertVisible: "Workout"
+
+- tapOn: "Start Workout"
+
+# Add an exercise
+- assertVisible: "Add Exercise"
+- tapOn: "Add Exercise"
+
+# Search and select Bench Press
+- tapOn:
+    id: "exercise-search"
+- inputText: "Bench Press"
+
+- tapOn: "Bench Press"
+
+# Add a set
+- assertVisible: "Set 1"
+
+- tapOn:
+    id: "weight-input"
+- inputText: "135"
+
+- tapOn:
+    id: "reps-input"
+- inputText: "10"
+
+- tapOn: "Add Set"
+
+# Verify set was added
+- assertVisible: "135"
+- assertVisible: "10"
+
+# Add another set
+- tapOn:
+    id: "weight-input"
+- inputText: "145"
+
+- tapOn:
+    id: "reps-input"
+- inputText: "8"
+
+- tapOn: "Add Set"
+
+# Finish workout
+- tapOn: "Finish Workout"
+
+# Confirm finish
+- tapOn: "Confirm"
+
+# Wait for results modal
+- extendedWaitUntil:
+    visible: "Workout Complete"
+    timeout: 10000
+
+# Verify XP was awarded
+- assertVisible: "XP"
+
+- tapOn: "Done"
+
+# Navigate to history and verify workout appears
+- tapOn: "History"
+
+- extendedWaitUntil:
+    visible: "Bench Press"
+    timeout: 5000
+
+# Verify the workout is listed
+- assertVisible:
+    text: "2 sets"

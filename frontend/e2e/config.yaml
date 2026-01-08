@@ -1,0 +1,26 @@
+# Maestro E2E Test Configuration
+# https://maestro.mobile.dev
+
+appId: com.spotter.app
+
+# Default settings for all tests
+defaults:
+  timeout: 10000
+
+# Environment variables
+env:
+  TEST_EMAIL: e2etest@example.com
+  TEST_PASSWORD: TestPassword123!
+  TEST_USERNAME: e2etestuser
+
+# Tags for filtering tests
+tags:
+  - smoke: [signup-to-workout.yaml]
+  - social: [social-flow.yaml]
+  - offline: [offline-workout.yaml]
+  - full: [signup-to-workout.yaml, social-flow.yaml, offline-workout.yaml]
+
+# Device configuration
+device:
+  locale: en_US
+  orientation: portrait

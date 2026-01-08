@@ -1,0 +1,92 @@
+appId: com.spotter.app
+---
+# E2E Test: Social Flow
+# Tests follow, feed visibility, and block functionality
+
+# Launch app (assumes user is already logged in)
+- launchApp:
+    clearState: false
+
+# Navigate to feed tab
+- tapOn: "Feed"
+
+# Verify feed is visible
+- assertVisible: "Social Feed"
+
+# Search for users
+- tapOn:
+    id: "search-users"
+- inputText: "testuser"
+
+# Wait for search results
+- extendedWaitUntil:
+    visible: "Follow"
+    timeout: 5000
+
+# Follow first user
+- tapOn: "Follow"
+
+# Verify follow button changes to Following
+- extendedWaitUntil:
+    visible: "Following"
+    timeout: 3000
+
+# Go back to feed
+- tapOn: "Feed"
+
+# Pull to refresh feed
+- swipe:
+    direction: DOWN
+    speed: 80
+
+# Wait for feed to update
+- extendedWaitUntil:
+    visible: "completed"
+    timeout: 5000
+
+# Tap on a post to view user profile
+- tapOn:
+    id: "feed-post-0"
+
+# Verify we're on user profile
+- assertVisible: "workouts"
+
+# Test block functionality
+- tapOn:
+    id: "more-options"
+
+- tapOn: "Block User"
+
+# Confirm block
+- tapOn: "Block"
+
+# Verify user is blocked and we return to feed
+- extendedWaitUntil:
+    visible: "Feed"
+    timeout: 3000
+
+# Go to settings to verify blocked users
+- tapOn: "Profile"
+- tapOn: "Settings"
+- tapOn: "Privacy"
+- tapOn: "Blocked Users"
+
+# Verify blocked user appears in list
+- assertVisible: "testuser"
+
+# Unblock user
+- tapOn: "Unblock"
+
+# Confirm unblock
+- tapOn: "Unblock"
+
+# Navigate back to feed
+- back
+- back
+- back
+- tapOn: "Feed"
+
+# Verify content is visible again (pull to refresh)
+- swipe:
+    direction: DOWN
+    speed: 80

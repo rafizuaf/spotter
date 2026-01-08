@@ -1,0 +1,105 @@
+appId: com.spotter.app
+---
+# E2E Test: Offline Workout and Sync
+# Tests creating a workout offline and syncing when back online
+
+# Launch app
+- launchApp:
+    clearState: false
+
+# Enable airplane mode (simulates offline)
+- toggleAirplaneMode
+
+# Navigate to workout tab
+- tapOn: "Workout"
+
+# Start a new workout
+- tapOn: "Start Workout"
+
+# Add an exercise
+- tapOn: "Add Exercise"
+- tapOn:
+    id: "exercise-search"
+- inputText: "Squat"
+- tapOn: "Squat"
+
+# Add sets while offline
+- tapOn:
+    id: "weight-input"
+- inputText: "225"
+
+- tapOn:
+    id: "reps-input"
+- inputText: "5"
+
+- tapOn: "Add Set"
+
+- tapOn:
+    id: "weight-input"
+- inputText: "235"
+
+- tapOn:
+    id: "reps-input"
+- inputText: "5"
+
+- tapOn: "Add Set"
+
+- tapOn:
+    id: "weight-input"
+- inputText: "245"
+
+- tapOn:
+    id: "reps-input"
+- inputText: "3"
+
+- tapOn: "Add Set"
+
+# Finish workout while offline
+- tapOn: "Finish Workout"
+- tapOn: "Confirm"
+
+# Verify workout completed locally
+- extendedWaitUntil:
+    visible: "Workout Complete"
+    timeout: 5000
+
+- tapOn: "Done"
+
+# Navigate to history and verify workout is there
+- tapOn: "History"
+
+- extendedWaitUntil:
+    visible: "Squat"
+    timeout: 3000
+
+# Verify sync indicator shows pending
+- assertVisible:
+    id: "sync-pending"
+
+# Disable airplane mode to go back online
+- toggleAirplaneMode
+
+# Wait for sync to complete
+- extendedWaitUntil:
+    visible:
+      id: "sync-complete"
+    timeout: 15000
+
+# Pull to refresh to verify sync
+- swipe:
+    direction: DOWN
+    speed: 80
+
+# Verify workout is still visible after sync
+- extendedWaitUntil:
+    visible: "Squat"
+    timeout: 5000
+
+# Navigate to profile to verify XP was awarded
+- tapOn: "Profile"
+
+# Verify XP increased (XP should be visible)
+- assertVisible: "XP"
+
+# Verify level display
+- assertVisible: "Level"

@@ -8,7 +8,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "e2e": "maestro test e2e/",
+    "e2e:signup": "maestro test e2e/signup-to-workout.yaml",
+    "e2e:social": "maestro test e2e/social-flow.yaml",
+    "e2e:offline": "maestro test e2e/offline-workout.yaml",
+    "e2e:studio": "maestro studio"
   },
   "dependencies": {
     "@nozbe/watermelondb": "^0.28.0",
