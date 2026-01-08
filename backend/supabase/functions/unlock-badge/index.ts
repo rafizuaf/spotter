@@ -235,6 +235,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // Create notifications for newly unlocked badges
+    const now = new Date().toISOString();
+    for (const badge of newlyUnlocked) {
+      await supabaseAdmin.from("notifications").insert({
+        recipient_id: userId,
+        type: "ACHIEVEMENT",
+        metadata: JSON.stringify({
+          achievementCode: badge.code,
+          earnedAt: badge.earnedAt,
+        }),
+        title: "Achievement Unlocked!",
+        body: `You earned "${badge.title}"`,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
     // Return newly unlocked badges
     return new Response(
       JSON.stringify({

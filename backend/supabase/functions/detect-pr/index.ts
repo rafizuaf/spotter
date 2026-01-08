@@ -182,6 +182,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // Create notification if any PRs were detected
+    if (prs.length > 0) {
+      // Get exercise names for the notification
+      const exerciseIds = prs.map((pr) => pr.exerciseId);
+      const { data: exercises } = await supabaseAdmin
+        .from("exercises")
+        .select("id, name")
+        .in("id", exerciseIds);
+
+      const exerciseNames =
+        exercises?.map((e) => e.name).join(", ") || "exercise";
+
+      const now = new Date().toISOString();
+      await supabaseAdmin.from("notifications").insert({
+        recipient_id: user.id,
+        type: "PR",
+        metadata: JSON.stringify({
+          workoutId,
+          prCount: prs.length,
+          exercises: prs.map((pr) => ({
+            exerciseId: pr.exerciseId,
+            improvement: pr.improvement,
+          })),
+        }),
+        title: prs.length === 1 ? "New Personal Record!" : `${prs.length} New PRs!`,
+        body: `You hit a new PR on ${exerciseNames}`,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
     // Return PR summary
     return new Response(
       JSON.stringify({

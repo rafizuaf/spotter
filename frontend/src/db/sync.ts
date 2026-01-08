@@ -20,6 +20,8 @@ const SYNC_TABLES = [
   'follows',
   'user_blocks',
   'social_posts',
+  'notifications', // Pull notifications from server
+  'push_devices', // Push device tokens to server
 ];
 
 interface SyncPullResponse {

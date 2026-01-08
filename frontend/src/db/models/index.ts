@@ -14,6 +14,8 @@ import Achievement from './Achievement';
 import Follow from './Follow';
 import UserBlock from './UserBlock';
 import SocialPost from './SocialPost';
+import Notification from './Notification';
+import PushDevice from './PushDevice';
 
 export {
   User,
@@ -32,6 +34,8 @@ export {
   Follow,
   UserBlock,
   SocialPost,
+  Notification,
+  PushDevice,
 };
 
 export const modelClasses = [
@@ -51,4 +55,6 @@ export const modelClasses = [
   Follow,
   UserBlock,
   SocialPost,
+  Notification,
+  PushDevice,
 ];

@@ -3,13 +3,30 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../src/stores/authStore';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  setupNotificationListeners,
+  registerForPushNotifications,
+} from '../src/services/notifications';
 
 export default function RootLayout() {
-  const { isInitialized, initialize } = useAuthStore();
+  const { isInitialized, initialize, user } = useAuthStore();
 
   useEffect(() => {
     initialize();
   }, []);
+
+  // Setup notification listeners
+  useEffect(() => {
+    const cleanup = setupNotificationListeners();
+    return cleanup;
+  }, []);
+
+  // Register for push notifications when user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      registerForPushNotifications(user.id);
+    }
+  }, [user?.id]);
 
   if (!isInitialized) {
     return (
@@ -38,6 +55,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       </Stack>
     </>
   );

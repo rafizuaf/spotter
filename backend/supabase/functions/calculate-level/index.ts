@@ -105,6 +105,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Calculate level and XP to next level
     const { level, xpToNextLevel } = calculateLevel(totalXp);
 
+    // Get previous level for level-up notification
+    const { data: previousLevelData } = await supabaseAdmin
+      .from("user_levels")
+      .select("level")
+      .eq("user_id", userId)
+      .single();
+
+    const previousLevel = previousLevelData?.level || 0;
+
     // Upsert to user_levels cache table
     const { error: upsertError } = await supabaseAdmin
       .from("user_levels")
@@ -128,6 +137,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
+    }
+
+    // Create level-up notification if level increased
+    if (level > previousLevel && previousLevel > 0) {
+      const now = new Date().toISOString();
+      await supabaseAdmin.from("notifications").insert({
+        recipient_id: userId,
+        type: "LEVEL_UP",
+        metadata: JSON.stringify({
+          previousLevel,
+          newLevel: level,
+          totalXp,
+        }),
+        title: "Level Up!",
+        body: `Congratulations! You've reached Level ${level}`,
+        created_at: now,
+        updated_at: now,
+      });
     }
 
     // Return level data

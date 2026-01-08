@@ -17,6 +17,8 @@ import type UserBadge from './models/UserBadge';
 import type Follow from './models/Follow';
 import type UserBlock from './models/UserBlock';
 import type SocialPost from './models/SocialPost';
+import type Notification from './models/Notification';
+import type PushDevice from './models/PushDevice';
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
@@ -50,5 +52,7 @@ export const userBadgesCollection = database.get<UserBadge>('user_badges');
 export const followsCollection = database.get<Follow>('follows');
 export const userBlocksCollection = database.get<UserBlock>('user_blocks');
 export const socialPostsCollection = database.get<SocialPost>('social_posts');
+export const notificationsCollection = database.get<Notification>('notifications');
+export const pushDevicesCollection = database.get<PushDevice>('push_devices');
 
 export default database;
