@@ -16,6 +16,8 @@ import UserBlock from './UserBlock';
 import SocialPost from './SocialPost';
 import Notification from './Notification';
 import PushDevice from './PushDevice';
+import UserActivityWeek from './UserActivityWeek';
+import UserStreakLog from './UserStreakLog';
 
 export {
   User,
@@ -36,6 +38,8 @@ export {
   SocialPost,
   Notification,
   PushDevice,
+  UserActivityWeek,
+  UserStreakLog,
 };
 
 export const modelClasses = [
@@ -57,4 +61,6 @@ export const modelClasses = [
   SocialPost,
   Notification,
   PushDevice,
+  UserActivityWeek,
+  UserStreakLog,
 ];

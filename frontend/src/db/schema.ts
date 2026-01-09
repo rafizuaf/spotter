@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 1,
+  version: 2, // Updated for weekly activity system
   tables: [
     // ============================================
     // Users & Settings
@@ -322,6 +322,38 @@ export const schema = appSchema({
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    // ============================================
+    // Weekly Activity System (v2)
+    // ============================================
+    tableSchema({
+      name: 'user_activity_weeks',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'week_start', type: 'string' }, // Date string YYYY-MM-DD
+        { name: 'active_days', type: 'number' },
+        { name: 'workouts_completed', type: 'number' },
+        { name: 'total_sets', type: 'number' },
+        { name: 'total_volume_kg', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    tableSchema({
+      name: 'user_streak_logs',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'streak_type', type: 'string' },
+        { name: 'streak_length', type: 'number' },
+        { name: 'week_ended', type: 'string' }, // Date string YYYY-MM-DD
+        { name: 'is_active', type: 'boolean' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ],
     }),
   ],

@@ -22,6 +22,8 @@ const SYNC_TABLES = [
   'social_posts',
   'notifications', // Pull notifications from server
   'push_devices', // Push device tokens to server
+  'user_activity_weeks', // Weekly activity tracking (v2)
+  'user_streak_logs', // Streak tracking (v2)
 ];
 
 interface SyncPullResponse {

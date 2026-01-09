@@ -12,8 +12,9 @@ const corsHeaders = {
 // XP Configuration (LOCKED v1)
 const XP_PER_SET = 10;
 const XP_WORKOUT_BONUS = 50;
-const DAILY_XP_CAP = 500;
-const WORKOUT_XP_CAP = 200;
+const DAILY_XP_CAP = 1000; // Max XP per day (100 sets worth)
+const WORKOUT_XP_CAP = 500; // Max XP per workout (50 sets worth)
+const MAX_SETS_PER_REQUEST = 100; // Prevent abuse - no workout has 100+ sets
 
 interface AwardXpRequest {
   userId: string;
@@ -53,6 +54,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!userId || !setIds || setIds.length === 0) {
       return new Response(
         JSON.stringify({ error: "Missing userId or setIds" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Validate set count to prevent abuse
+    if (setIds.length > MAX_SETS_PER_REQUEST) {
+      return new Response(
+        JSON.stringify({
+          error: `Too many sets in request. Maximum ${MAX_SETS_PER_REQUEST} sets allowed.`,
+          setsReceived: setIds.length,
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
