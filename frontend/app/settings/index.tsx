@@ -35,6 +35,12 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { label: 'Body Tracking', route: '/body-tracking', description: 'Weight and measurements' },
     ],
   },
+  {
+    title: 'Help',
+    items: [
+      { label: 'Fitness Glossary', route: '/settings/glossary', description: 'Learn fitness terms (RPE, RIR, etc.)' },
+    ],
+  },
 ];
 
 export default function SettingsScreen() {
