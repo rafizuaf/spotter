@@ -36,6 +36,16 @@ export default function HomeScreen() {
         <Text style={[styles.startButtonText, { color: colors.background }]}>Start Workout</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={[styles.quickLogButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        onPress={() => router.push('/quick-log')}
+      >
+        <Text style={[styles.quickLogButtonText, { color: colors.primary }]}>Quick Log</Text>
+        <Text style={[styles.quickLogSubtext, { color: colors.textSecondary }]}>
+          Tap muscle groups to log
+        </Text>
+      </TouchableOpacity>
+
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Activity</Text>
         <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
@@ -108,6 +118,22 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  quickLogButton: {
+    marginHorizontal: 24,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  quickLogButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  quickLogSubtext: {
+    fontSize: 14,
+    marginTop: 4,
   },
   section: {
     padding: 24,

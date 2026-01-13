@@ -227,11 +227,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       const workoutServerId = state.workoutId || uuid();
       const endTime = new Date();
 
-      // Get completed sets only
+      // Get completed sets only (weight and reps are optional for Quick Log)
       const completedSets: WorkoutSet[] = [];
       state.exercises.forEach((exercise) => {
         exercise.sets.forEach((set) => {
-          if (set.completed && set.weightKg && set.reps) {
+          if (set.completed) {
             completedSets.push(set);
           }
         });
@@ -256,14 +256,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           w.visibility = state.visibility;
         });
 
-        // Create workout sets
+        // Create workout sets (weight and reps default to 0 if not provided)
         for (const set of completedSets) {
           await workoutSetsCollection.create((s: WorkoutSetModel) => {
             s.serverId = uuid();
             s.workoutId = workout.id;
             s.exerciseId = set.exerciseId;
-            s.weightKg = parseFloat(set.weightKg);
-            s.reps = parseInt(set.reps, 10);
+            s.weightKg = parseFloat(set.weightKg) || 0;
+            s.reps = parseInt(set.reps, 10) || 0;
             s.rpe = set.rpe ? parseFloat(set.rpe) : undefined;
             s.rir = set.rir ? parseInt(set.rir, 10) : undefined;
             s.isFailure = set.isFailure;
