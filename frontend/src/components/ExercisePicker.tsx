@@ -11,11 +11,17 @@ import {
   Alert,
 } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
-import { database, exercisesCollection } from '../db';
+import { database, exercisesCollection, userSettingsCollection } from '../db';
 import { useAuthStore } from '../stores/authStore';
 import { v4 as uuid } from 'uuid';
 import type Exercise from '../db/models/Exercise';
+import type UserSettings from '../db/models/UserSettings';
 import colors, { withOpacity } from '@/utils/colors';
+import {
+  getSuggestedWeight,
+  formatSuggestedWeight,
+  type Gender,
+} from '../constants/startingWeights';
 
 interface ExercisePickerProps {
   visible: boolean;
@@ -45,6 +51,8 @@ export default function ExercisePicker({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [userGender, setUserGender] = useState<Gender>('OTHER');
+  const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
 
   // Custom exercise creation state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -55,8 +63,31 @@ export default function ExercisePicker({
   useEffect(() => {
     if (visible) {
       loadExercises();
+      loadUserSettings();
     }
   }, [visible]);
+
+  const loadUserSettings = async () => {
+    if (!user) return;
+    try {
+      const settings = await userSettingsCollection
+        .query(Q.where('user_id', user.id))
+        .fetch();
+      if (settings.length > 0) {
+        const record = settings[0] as UserSettings;
+        const gender = record.gender?.toUpperCase() as Gender;
+        if (gender === 'MALE' || gender === 'FEMALE' || gender === 'OTHER') {
+          setUserGender(gender);
+        }
+        const unit = record.weightUnitPreference?.toUpperCase();
+        if (unit === 'KG' || unit === 'LBS') {
+          setWeightUnit(unit);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user settings:', error);
+    }
+  };
 
   useEffect(() => {
     filterExercises();
@@ -154,20 +185,34 @@ export default function ExercisePicker({
     setShowCreateForm(false);
   };
 
-  const renderExerciseItem = ({ item }: { item: Exercise }) => (
-    <TouchableOpacity
-      style={styles.exerciseItem}
-      onPress={() => handleSelectExercise(item)}
-    >
-      <View>
-        <Text style={styles.exerciseName}>{item.name}</Text>
-        {item.muscleGroup && (
-          <Text style={styles.muscleGroup}>{item.muscleGroup}</Text>
-        )}
-      </View>
-      <Text style={styles.selectIcon}>+</Text>
-    </TouchableOpacity>
-  );
+  const renderExerciseItem = ({ item }: { item: Exercise }) => {
+    const suggestedWeight = getSuggestedWeight(item.name, userGender, 'BEGINNER');
+    const showSuggestion = suggestedWeight !== null && suggestedWeight > 0;
+
+    return (
+      <TouchableOpacity
+        style={styles.exerciseItem}
+        onPress={() => handleSelectExercise(item)}
+      >
+        <View style={styles.exerciseInfo}>
+          <Text style={styles.exerciseName}>{item.name}</Text>
+          <View style={styles.exerciseMeta}>
+            {item.muscleGroup && (
+              <Text style={styles.muscleGroup}>{item.muscleGroup}</Text>
+            )}
+            {showSuggestion && (
+              <View style={styles.suggestionBadge}>
+                <Text style={styles.suggestionText}>
+                  Try {formatSuggestedWeight(suggestedWeight, weightUnit)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <Text style={styles.selectIcon}>+</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
@@ -494,15 +539,36 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  exerciseInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
   exerciseName: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
+  exerciseMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   muscleGroup: {
     color: colors.textSecondary,
     fontSize: 14,
+  },
+  suggestionBadge: {
+    backgroundColor: withOpacity(colors.success, 0.15),
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  suggestionText: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '600',
   },
   selectIcon: {
     color: colors.primary,
