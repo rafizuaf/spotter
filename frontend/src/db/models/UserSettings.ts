@@ -35,6 +35,9 @@ export default class UserSettings extends Model {
   @text('default_workout_visibility') defaultWorkoutVisibility!: string;
   @json('notification_preferences', sanitizeJSON) notificationPreferences!: Record<string, unknown>;
   @json('equipment_overrides', sanitizeJSON) equipmentOverrides!: Record<string, unknown>;
+  @field('onboarding_completed') onboardingCompleted!: boolean;
+  @text('onboarding_persona') onboardingPersona?: string;
+  @text('workout_mode') workoutMode!: string;
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
   @date('deleted_at') deletedAt?: Date;

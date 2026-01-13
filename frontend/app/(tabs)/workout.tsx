@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,10 @@ import {
 import { useWorkoutStore } from '../../src/stores/workoutStore';
 import ExercisePicker from '../../src/components/ExercisePicker';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useAuthStore } from '../../src/stores/authStore';
+import { userSettingsCollection } from '../../src/db';
+import { Q } from '@nozbe/watermelondb';
+import type UserSettings from '../../src/db/models/UserSettings';
 
 export default function WorkoutScreen() {
   const {
@@ -33,8 +37,38 @@ export default function WorkoutScreen() {
     cancelWorkout,
   } = useWorkoutStore();
   const colors = useTheme();
+  const { user } = useAuthStore();
 
   const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [workoutMode, setWorkoutMode] = useState<'SIMPLE' | 'FULL'>('SIMPLE');
+  const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
+  
+  // Refs for auto-advance cursor
+  const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
+  const repsInputRefs = useRef<{ [key: string]: TextInput | null }>({});
+
+  // Load user settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!user) return;
+
+      try {
+        const settings = await userSettingsCollection
+          .query(Q.where('user_id', user.id))
+          .fetch();
+
+        if (settings.length > 0) {
+          const record = settings[0] as UserSettings;
+          setWorkoutMode((record.workoutMode as 'SIMPLE' | 'FULL') || 'SIMPLE');
+          setWeightUnit((record.weightUnitPreference as 'KG' | 'LBS') || 'KG');
+        }
+      } catch (error) {
+        console.error('Error loading workout settings:', error);
+      }
+    };
+
+    loadSettings();
+  }, [user]);
 
   const handleStartWorkout = () => {
     startWorkout();
@@ -46,6 +80,46 @@ export default function WorkoutScreen() {
 
   const handleSelectExercise = (exerciseId: string, exerciseName: string) => {
     addExercise(exerciseId, exerciseName);
+    setShowExercisePicker(false);
+  };
+
+  // Auto-advance cursor: weight -> reps -> next set
+  const handleWeightSubmit = (exerciseId: string, setId: string, value: string) => {
+    updateSet(exerciseId, setId, { weightKg: value });
+    // Focus reps input
+    const repsKey = `${exerciseId}-${setId}-reps`;
+    repsInputRefs.current[repsKey]?.focus();
+  };
+
+  const handleRepsSubmit = (exerciseId: string, setId: string, value: string) => {
+    updateSet(exerciseId, setId, { reps: value });
+    // Use setTimeout to ensure state is updated, then check current exercises
+    setTimeout(() => {
+      // Get current state from store
+      const storeState = useWorkoutStore.getState();
+      const exercise = storeState.exercises.find((e) => e.id === exerciseId);
+      if (exercise) {
+        const currentSetIndex = exercise.sets.findIndex((s) => s.id === setId);
+        if (currentSetIndex < exercise.sets.length - 1) {
+          // Focus next set's weight input
+          const nextSet = exercise.sets[currentSetIndex + 1];
+          const weightKey = `${exerciseId}-${nextSet.id}-weight`;
+          weightInputRefs.current[weightKey]?.focus();
+        } else {
+          // Auto-add new set and focus it
+          addSet(exerciseId);
+          setTimeout(() => {
+            const updatedState = useWorkoutStore.getState();
+            const updatedExercise = updatedState.exercises.find((e) => e.id === exerciseId);
+            if (updatedExercise && updatedExercise.sets.length > 0) {
+              const newSet = updatedExercise.sets[updatedExercise.sets.length - 1];
+              const weightKey = `${exerciseId}-${newSet.id}-weight`;
+              weightInputRefs.current[weightKey]?.focus();
+            }
+          }, 100);
+        }
+      }
+    }, 50);
   };
 
   const handleFinishWorkout = async () => {
@@ -97,7 +171,7 @@ export default function WorkoutScreen() {
         <View style={styles.emptyState}>
           <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Active Workout</Text>
           <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-            Start a new workout or select a routine
+            Start logging your workout
           </Text>
           <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.primary }]} onPress={handleStartWorkout}>
             <Text style={[styles.startButtonText, { color: colors.background }]}>Start Empty Workout</Text>
@@ -207,59 +281,134 @@ export default function WorkoutScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.setHeader}>
-              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>SET</Text>
-              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>KG</Text>
-              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>REPS</Text>
-              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>RPE</Text>
-              <Text style={styles.setHeaderText}></Text>
-            </View>
+            {workoutMode === 'FULL' ? (
+              // Full Mode: All fields (SET, WEIGHT, REPS, RPE)
+              <>
+                <View style={styles.setHeader}>
+                  <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>SET</Text>
+                  <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>{weightUnit}</Text>
+                  <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>REPS</Text>
+                  <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>RPE</Text>
+                  <Text style={styles.setHeaderText}></Text>
+                </View>
 
-            {exercise.sets.map((set, index) => (
-              <View key={set.id} style={styles.setRow}>
-                <Text style={[styles.setNumber, { color: colors.textPrimary }]}>{index + 1}</Text>
-                <TextInput
-                  style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
-                  value={set.weightKg}
-                  onChangeText={(value) =>
-                    updateSet(exercise.id, set.id, { weightKg: value })
-                  }
-                  placeholder="0"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                />
-                <TextInput
-                  style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
-                  value={set.reps}
-                  onChangeText={(value) =>
-                    updateSet(exercise.id, set.id, { reps: value })
-                  }
-                  placeholder="0"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                />
-                <TextInput
-                  style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
-                  value={set.rpe || ''}
-                  onChangeText={(value) =>
-                    updateSet(exercise.id, set.id, { rpe: value })
-                  }
-                  placeholder="-"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.checkButton,
-                    { backgroundColor: colors.surfaceElevated },
-                    set.completed && { backgroundColor: colors.success },
-                  ]}
-                  onPress={() => toggleSetComplete(exercise.id, set.id)}
-                >
-                  <Text style={[styles.checkText, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+                {exercise.sets.map((set, index) => (
+                  <View key={set.id} style={styles.setRow}>
+                    <Text style={[styles.setNumber, { color: colors.textPrimary }]}>{index + 1}</Text>
+                    <TextInput
+                      ref={(ref) => {
+                        const key = `${exercise.id}-${set.id}-weight`;
+                        weightInputRefs.current[key] = ref;
+                      }}
+                      style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                      value={set.weightKg}
+                      onChangeText={(value) =>
+                        updateSet(exercise.id, set.id, { weightKg: value })
+                      }
+                      onSubmitEditing={() => handleWeightSubmit(exercise.id, set.id, set.weightKg)}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      returnKeyType="next"
+                    />
+                    <TextInput
+                      ref={(ref) => {
+                        const key = `${exercise.id}-${set.id}-reps`;
+                        repsInputRefs.current[key] = ref;
+                      }}
+                      style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                      value={set.reps}
+                      onChangeText={(value) =>
+                        updateSet(exercise.id, set.id, { reps: value })
+                      }
+                      onSubmitEditing={() => handleRepsSubmit(exercise.id, set.id, set.reps)}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      returnKeyType="next"
+                    />
+                    <TextInput
+                      style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                      value={set.rpe || ''}
+                      onChangeText={(value) =>
+                        updateSet(exercise.id, set.id, { rpe: value })
+                      }
+                      placeholder="-"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.checkButton,
+                        { backgroundColor: colors.surfaceElevated },
+                        set.completed && { backgroundColor: colors.success },
+                      ]}
+                      onPress={() => toggleSetComplete(exercise.id, set.id)}
+                    >
+                      <Text style={[styles.checkText, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
+            ) : (
+              // Simple Mode: Weight + Reps only, big buttons
+              <>
+                <View style={styles.setHeaderSimple}>
+                  <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>SET</Text>
+                  <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>{weightUnit}</Text>
+                  <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>REPS</Text>
+                  <Text style={styles.setHeaderTextSimple}></Text>
+                </View>
+
+                {exercise.sets.map((set, index) => (
+                  <View key={set.id} style={styles.setRowSimple}>
+                    <Text style={[styles.setNumberSimple, { color: colors.textPrimary }]}>{index + 1}</Text>
+                    <TextInput
+                      ref={(ref) => {
+                        const key = `${exercise.id}-${set.id}-weight`;
+                        weightInputRefs.current[key] = ref;
+                      }}
+                      style={[styles.setInputSimple, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                      value={set.weightKg}
+                      onChangeText={(value) =>
+                        updateSet(exercise.id, set.id, { weightKg: value })
+                      }
+                      onSubmitEditing={() => handleWeightSubmit(exercise.id, set.id, set.weightKg)}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      returnKeyType="next"
+                    />
+                    <TextInput
+                      ref={(ref) => {
+                        const key = `${exercise.id}-${set.id}-reps`;
+                        repsInputRefs.current[key] = ref;
+                      }}
+                      style={[styles.setInputSimple, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                      value={set.reps}
+                      onChangeText={(value) =>
+                        updateSet(exercise.id, set.id, { reps: value })
+                      }
+                      onSubmitEditing={() => handleRepsSubmit(exercise.id, set.id, set.reps)}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      returnKeyType="next"
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.checkButtonSimple,
+                        { backgroundColor: colors.surfaceElevated },
+                        set.completed && { backgroundColor: colors.success },
+                      ]}
+                      onPress={() => toggleSetComplete(exercise.id, set.id)}
+                    >
+                      <Text style={[styles.checkTextSimple, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
+            )}
 
             <View style={styles.setActions}>
               <TouchableOpacity
@@ -478,5 +627,48 @@ const styles = StyleSheet.create({
   addExerciseText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Simple Mode styles
+  setHeaderSimple: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  setHeaderTextSimple: {
+    flex: 1,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  setRowSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  setNumberSimple: {
+    flex: 0.5,
+    fontSize: 18,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  setInputSimple: {
+    flex: 1.5,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 6,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  checkButtonSimple: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginLeft: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkTextSimple: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });

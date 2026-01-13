@@ -48,6 +48,9 @@ export const schema = appSchema({
         { name: 'default_workout_visibility', type: 'string' },
         { name: 'notification_preferences', type: 'string' }, // JSON string
         { name: 'equipment_overrides', type: 'string' }, // JSON string
+        { name: 'onboarding_completed', type: 'boolean' },
+        { name: 'onboarding_persona', type: 'string', isOptional: true },
+        { name: 'workout_mode', type: 'string' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
