@@ -15,12 +15,14 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { database, userSettingsCollection } from '../../src/db';
 import { syncDatabase } from '../../src/db/sync';
 import type UserSettings from '../../src/db/models/UserSettings';
+import { useTheme } from '../../src/hooks/useTheme';
 
 type WeightUnit = 'kg' | 'lbs';
 type DistanceUnit = 'km' | 'miles';
 
 export default function PreferencesSettingsScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
   const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('km');
@@ -89,8 +91,8 @@ export default function PreferencesSettingsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -103,33 +105,34 @@ export default function PreferencesSettingsScreen() {
           headerRight: () => (
             <TouchableOpacity onPress={handleSave} disabled={saving}>
               {saving ? (
-                <ActivityIndicator size="small" color="#6366f1" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Text style={styles.saveButton}>Save</Text>
+                <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
               )}
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView style={styles.container}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Units Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Units</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Units</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.optionRow}>
-              <Text style={styles.optionLabel}>Weight</Text>
-              <View style={styles.segmentedControl}>
+              <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Weight</Text>
+              <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceElevated }]}>
                 <TouchableOpacity
                   style={[
                     styles.segment,
-                    weightUnit === 'kg' && styles.segmentActive,
+                    weightUnit === 'kg' && { backgroundColor: colors.primary },
                   ]}
                   onPress={() => setWeightUnit('kg')}
                 >
                   <Text
                     style={[
                       styles.segmentText,
-                      weightUnit === 'kg' && styles.segmentTextActive,
+                      { color: colors.textSecondary },
+                      weightUnit === 'kg' && { color: colors.background },
                     ]}
                   >
                     kg
@@ -138,14 +141,15 @@ export default function PreferencesSettingsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.segment,
-                    weightUnit === 'lbs' && styles.segmentActive,
+                    weightUnit === 'lbs' && { backgroundColor: colors.primary },
                   ]}
                   onPress={() => setWeightUnit('lbs')}
                 >
                   <Text
                     style={[
                       styles.segmentText,
-                      weightUnit === 'lbs' && styles.segmentTextActive,
+                      { color: colors.textSecondary },
+                      weightUnit === 'lbs' && { color: colors.background },
                     ]}
                   >
                     lbs
@@ -154,20 +158,21 @@ export default function PreferencesSettingsScreen() {
               </View>
             </View>
 
-            <View style={[styles.optionRow, styles.optionRowBorder]}>
-              <Text style={styles.optionLabel}>Distance</Text>
-              <View style={styles.segmentedControl}>
+            <View style={[styles.optionRow, { borderTopColor: colors.border }]}>
+              <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Distance</Text>
+              <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceElevated }]}>
                 <TouchableOpacity
                   style={[
                     styles.segment,
-                    distanceUnit === 'km' && styles.segmentActive,
+                    distanceUnit === 'km' && { backgroundColor: colors.primary },
                   ]}
                   onPress={() => setDistanceUnit('km')}
                 >
                   <Text
                     style={[
                       styles.segmentText,
-                      distanceUnit === 'km' && styles.segmentTextActive,
+                      { color: colors.textSecondary },
+                      distanceUnit === 'km' && { color: colors.background },
                     ]}
                   >
                     km
@@ -176,14 +181,15 @@ export default function PreferencesSettingsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.segment,
-                    distanceUnit === 'miles' && styles.segmentActive,
+                    distanceUnit === 'miles' && { backgroundColor: colors.primary },
                   ]}
                   onPress={() => setDistanceUnit('miles')}
                 >
                   <Text
                     style={[
                       styles.segmentText,
-                      distanceUnit === 'miles' && styles.segmentTextActive,
+                      { color: colors.textSecondary },
+                      distanceUnit === 'miles' && { color: colors.background },
                     ]}
                   >
                     miles
@@ -196,35 +202,35 @@ export default function PreferencesSettingsScreen() {
 
         {/* Workout Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Workout</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Workout</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.switchRow}>
               <View style={styles.switchLabel}>
-                <Text style={styles.optionLabel}>Keep Screen Awake</Text>
-                <Text style={styles.optionDescription}>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Keep Screen Awake</Text>
+                <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
                   Prevent screen from sleeping during workouts
                 </Text>
               </View>
               <Switch
                 value={keepScreenAwake}
                 onValueChange={setKeepScreenAwake}
-                trackColor={{ false: '#334155', true: '#6366f1' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
 
-            <View style={[styles.switchRow, styles.optionRowBorder]}>
+            <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
               <View style={styles.switchLabel}>
-                <Text style={styles.optionLabel}>Auto-start Rest Timer</Text>
-                <Text style={styles.optionDescription}>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Auto-start Rest Timer</Text>
+                <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
                   Automatically start timer after logging a set
                 </Text>
               </View>
               <Switch
                 value={timerAutoStart}
                 onValueChange={setTimerAutoStart}
-                trackColor={{ false: '#334155', true: '#6366f1' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
           </View>
@@ -232,35 +238,35 @@ export default function PreferencesSettingsScreen() {
 
         {/* Timer Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Timer Alerts</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Timer Alerts</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.switchRow}>
               <View style={styles.switchLabel}>
-                <Text style={styles.optionLabel}>Vibration</Text>
-                <Text style={styles.optionDescription}>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Vibration</Text>
+                <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
                   Vibrate when timer completes
                 </Text>
               </View>
               <Switch
                 value={timerVibration}
                 onValueChange={setTimerVibration}
-                trackColor={{ false: '#334155', true: '#6366f1' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
 
-            <View style={[styles.switchRow, styles.optionRowBorder]}>
+            <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
               <View style={styles.switchLabel}>
-                <Text style={styles.optionLabel}>Sound</Text>
-                <Text style={styles.optionDescription}>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Sound</Text>
+                <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
                   Play sound when timer completes
                 </Text>
               </View>
               <Switch
                 value={timerSound}
                 onValueChange={setTimerSound}
-                trackColor={{ false: '#334155', true: '#6366f1' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
           </View>
@@ -273,18 +279,15 @@ export default function PreferencesSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   saveButton: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6366f1',
     marginRight: 8,
   },
   section: {
@@ -294,13 +297,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748b',
     textTransform: 'uppercase',
     marginBottom: 8,
     marginLeft: 4,
   },
   card: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -309,23 +310,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-  },
-  optionRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: '#334155',
   },
   optionLabel: {
     fontSize: 16,
-    color: '#fff',
   },
   optionDescription: {
     fontSize: 13,
-    color: '#64748b',
     marginTop: 2,
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#334155',
     borderRadius: 6,
     overflow: 'hidden',
   },
@@ -333,22 +328,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  segmentActive: {
-    backgroundColor: '#6366f1',
-  },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94a3b8',
-  },
-  segmentTextActive: {
-    color: '#fff',
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    borderTopWidth: 1,
   },
   switchLabel: {
     flex: 1,

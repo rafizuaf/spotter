@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -20,6 +21,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState('');
   const { register, isLoading, error, clearError } = useAuthStore();
+  const colors = useTheme();
 
   const handleRegister = async () => {
     setLocalError('');
@@ -56,7 +58,7 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -65,29 +67,29 @@ export default function RegisterScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Join Spotter</Text>
-            <Text style={styles.subtitle}>Create your account</Text>
+            <Text style={[styles.title, { color: colors.primary }]}>Join Spotter</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Create your account</Text>
           </View>
 
           <View style={styles.form}>
             {displayError && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{displayError}</Text>
+              <View style={[styles.errorContainer, { backgroundColor: colors.error }]}>
+                <Text style={[styles.errorText, { color: colors.textPrimary }]}>{displayError}</Text>
                 <TouchableOpacity
                   onPress={() => {
                     setLocalError('');
                     clearError();
                   }}
                 >
-                  <Text style={styles.errorDismiss}>Dismiss</Text>
+                  <Text style={[styles.errorDismiss, { color: colors.textPrimary }]}>Dismiss</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
               placeholder="Username"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -95,9 +97,9 @@ export default function RegisterScreen() {
             />
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
               placeholder="Email"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -106,9 +108,9 @@ export default function RegisterScreen() {
             />
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
               placeholder="Password"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -116,9 +118,9 @@ export default function RegisterScreen() {
             />
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
               placeholder="Confirm Password"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -126,22 +128,22 @@ export default function RegisterScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={[styles.button, { backgroundColor: colors.primary }, isLoading && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.background} />
               ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
+                <Text style={[styles.buttonText, { color: colors.background }]}>Create Account</Text>
               )}
             </TouchableOpacity>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>Already have an account? </Text>
               <Link href="/(auth)/login" asChild>
                 <TouchableOpacity>
-                  <Text style={styles.link}>Sign In</Text>
+                  <Text style={[styles.link, { color: colors.primary }]}>Sign In</Text>
                 </TouchableOpacity>
               </Link>
             </View>
@@ -155,7 +157,6 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   scrollContent: {
     flexGrow: 1,
@@ -173,27 +174,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    color: '#94a3b8',
   },
   form: {
     gap: 16,
   },
   input: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
     borderWidth: 1,
-    borderColor: '#334155',
   },
   button: {
-    backgroundColor: '#6366f1',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -203,7 +198,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -213,16 +207,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: '#94a3b8',
     fontSize: 16,
   },
   link: {
-    color: '#6366f1',
     fontSize: 16,
     fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: '#7f1d1d',
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -230,11 +221,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#fecaca',
     flex: 1,
   },
   errorDismiss: {
-    color: '#fecaca',
     fontWeight: '600',
     marginLeft: 8,
   },

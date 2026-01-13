@@ -1,54 +1,60 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Welcome back!</Text>
-        <Text style={styles.username}>@{user?.user_metadata?.username || 'User'}</Text>
+        <Text style={[styles.greeting, { color: colors.textPrimary }]}>Welcome back!</Text>
+        <Text style={[styles.username, { color: colors.textSecondary }]}>@{user?.user_metadata?.username || 'User'}</Text>
       </View>
 
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>1</Text>
-          <Text style={styles.statLabel}>Level</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>1</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Level</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>0</Text>
-          <Text style={styles.statLabel}>XP</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>0</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>XP</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>0</Text>
-          <Text style={styles.statLabel}>Workouts</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>0</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Workouts</Text>
         </View>
       </View>
 
       <TouchableOpacity
-        style={styles.startButton}
+        style={[styles.startButton, { backgroundColor: colors.primary }]}
         onPress={() => router.push('/(tabs)/workout')}
       >
-        <Text style={styles.startButtonText}>Start Workout</Text>
+        <Text style={[styles.startButtonText, { color: colors.background }]}>Start Workout</Text>
       </TouchableOpacity>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No recent workouts</Text>
-          <Text style={styles.emptySubtext}>Start your first workout to see activity here</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Activity</Text>
+        <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No recent workouts</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>Start your first workout to see activity here</Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Weekly Progress</Text>
-        <View style={styles.weekContainer}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Weekly Progress</Text>
+        <View style={[styles.weekContainer, { backgroundColor: colors.surface }]}>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
             <View key={index} style={styles.dayContainer}>
-              <View style={[styles.dayCircle, index === 0 && styles.dayActive]} />
-              <Text style={styles.dayLabel}>{day}</Text>
+              <View style={[
+                styles.dayCircle,
+                { backgroundColor: colors.surfaceElevated },
+                index === 0 && { backgroundColor: colors.primary }
+              ]} />
+              <Text style={[styles.dayLabel, { color: colors.textSecondary }]}>{day}</Text>
             </View>
           ))}
         </View>
@@ -60,7 +66,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   header: {
     padding: 24,
@@ -69,11 +74,9 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
   },
   username: {
     fontSize: 16,
-    color: '#94a3b8',
     marginTop: 4,
   },
   statsContainer: {
@@ -83,7 +86,6 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -91,15 +93,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statLabel: {
     fontSize: 14,
-    color: '#94a3b8',
     marginTop: 4,
   },
   startButton: {
-    backgroundColor: '#6366f1',
     marginHorizontal: 24,
     marginTop: 24,
     borderRadius: 16,
@@ -107,7 +106,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   startButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -117,29 +115,24 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 16,
   },
   emptyState: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 16,
-    color: '#94a3b8',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#64748b',
     marginTop: 4,
     textAlign: 'center',
   },
   weekContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
   },
@@ -151,13 +144,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#334155',
-  },
-  dayActive: {
-    backgroundColor: '#6366f1',
   },
   dayLabel: {
     fontSize: 12,
-    color: '#94a3b8',
   },
 });

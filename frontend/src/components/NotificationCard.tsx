@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { NotificationType } from '../db/models/Notification';
+import colors, { withOpacity } from '@/utils/colors';
 
 interface NotificationCardProps {
   id: string;
@@ -90,16 +91,16 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
     position: 'relative',
   },
   unreadContainer: {
-    backgroundColor: '#1e3a5f',
+    backgroundColor: withOpacity(colors.primary, 0.1),
     borderLeftWidth: 3,
-    borderLeftColor: '#6366f1',
+    borderLeftColor: colors.primary,
   },
   unreadDot: {
     position: 'absolute',
@@ -108,13 +109,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
   },
   iconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -128,17 +129,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   body: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginBottom: 4,
     lineHeight: 20,
   },
   timestamp: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textMuted,
   },
 });

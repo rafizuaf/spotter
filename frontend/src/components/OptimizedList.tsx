@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ListRenderItem,
 } from 'react-native';
+import colors from '@/utils/colors';
 
 interface OptimizedListProps<T> extends Omit<FlatListProps<T>, 'renderItem' | 'keyExtractor'> {
   data: T[];
@@ -83,8 +84,8 @@ function OptimizedListInner<T>({
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#6366f1"
-            colors={['#6366f1']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         ) : undefined
       }
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#64748b',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   emptyList: {

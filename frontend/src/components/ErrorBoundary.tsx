@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { logError } from '../utils/errorHandler';
+import colors from '@/utils/colors';
 
 interface Props {
   children: ReactNode;
@@ -71,7 +72,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -87,19 +88,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
   },
   errorDetails: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 8,
     width: '100%',
@@ -108,22 +109,22 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#ef4444',
+    color: colors.error,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontFamily: 'monospace',
   },
   button: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },

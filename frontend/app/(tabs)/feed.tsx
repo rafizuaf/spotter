@@ -6,6 +6,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { syncDatabase } from '../../src/db/sync';
 import type SocialPost from '../../src/db/models/SocialPost';
 import type User from '../../src/db/models/User';
+import { useTheme } from '../../src/hooks/useTheme';
 
 interface PostWithUser {
   id: string;
@@ -20,6 +21,7 @@ interface PostWithUser {
 
 export default function FeedScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [posts, setPosts] = useState<PostWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -171,16 +173,16 @@ export default function FeedScreen() {
   };
 
   const renderPost = ({ item }: { item: PostWithUser }) => (
-    <View style={styles.postCard}>
+    <View style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.postHeader}>
         {/* Avatar */}
-        <View style={styles.avatar}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
           {item.avatarUrl ? (
-            <Text style={styles.avatarText}>
+            <Text style={[styles.avatarText, { color: colors.background }]}>
               {item.username.charAt(0).toUpperCase()}
             </Text>
           ) : (
-            <Text style={styles.avatarText}>
+            <Text style={[styles.avatarText, { color: colors.background }]}>
               {item.username.charAt(0).toUpperCase()}
             </Text>
           )}
@@ -188,20 +190,20 @@ export default function FeedScreen() {
 
         {/* User info */}
         <View style={styles.postHeaderText}>
-          <Text style={styles.username}>{item.username}</Text>
-          <Text style={styles.timestamp}>{formatDate(item.createdAt)}</Text>
+          <Text style={[styles.username, { color: colors.textPrimary }]}>{item.username}</Text>
+          <Text style={[styles.timestamp, { color: colors.textSecondary }]}>{formatDate(item.createdAt)}</Text>
         </View>
       </View>
 
       {/* Post content */}
-      <Text style={styles.headline}>{item.headline}</Text>
+      <Text style={[styles.headline, { color: colors.textPrimary }]}>{item.headline}</Text>
     </View>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>No posts yet</Text>
-      <Text style={styles.emptyText}>
+      <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No posts yet</Text>
+      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
         Follow other users to see their workouts and achievements in your feed
       </Text>
     </View>
@@ -209,16 +211,16 @@ export default function FeedScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Feed</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Feed</Text>
       </View>
 
       <FlatList
@@ -233,8 +235,8 @@ export default function FeedScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#6366f1"
-            colors={['#6366f1']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={renderEmptyState}
@@ -246,25 +248,20 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   listContent: {
     padding: 16,
@@ -273,12 +270,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   postCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#334155',
   },
   postHeader: {
     flexDirection: 'row',
@@ -289,13 +284,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   avatarText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -305,16 +298,13 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 2,
   },
   timestamp: {
     fontSize: 13,
-    color: '#94a3b8',
   },
   headline: {
     fontSize: 15,
-    color: '#e2e8f0',
     lineHeight: 22,
   },
   emptyContainer: {
@@ -326,12 +316,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: '#94a3b8',
     textAlign: 'center',
     lineHeight: 22,
   },

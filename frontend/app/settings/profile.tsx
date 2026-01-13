@@ -15,9 +15,11 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { database, usersCollection } from '../../src/db';
 import { syncDatabase } from '../../src/db/sync';
 import type User from '../../src/db/models/User';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function ProfileSettingsScreen() {
   const { user: authUser } = useAuthStore();
+  const colors = useTheme();
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [websiteLink, setWebsiteLink] = useState('');
@@ -91,8 +93,8 @@ export default function ProfileSettingsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -105,65 +107,65 @@ export default function ProfileSettingsScreen() {
           headerRight: () => (
             <TouchableOpacity onPress={handleSave} disabled={saving}>
               {saving ? (
-                <ActivityIndicator size="small" color="#6366f1" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Text style={styles.saveButton}>Save</Text>
+                <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
               )}
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView style={styles.container}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Avatar placeholder */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.background }]}>
               {username?.[0]?.toUpperCase() || 'U'}
             </Text>
           </View>
           <TouchableOpacity>
-            <Text style={styles.changeAvatarText}>Change Avatar</Text>
+            <Text style={[styles.changeAvatarText, { color: colors.primary }]}>Change Avatar</Text>
           </TouchableOpacity>
         </View>
 
         {/* Form fields */}
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Username</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={username}
               onChangeText={setUsername}
               placeholder="Enter username"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bio</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Bio</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={bio}
               onChangeText={setBio}
               placeholder="Tell us about yourself"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               maxLength={150}
             />
-            <Text style={styles.charCount}>{bio.length}/150</Text>
+            <Text style={[styles.charCount, { color: colors.textMuted }]}>{bio.length}/150</Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Website</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Website</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={websiteLink}
               onChangeText={setWebsiteLink}
               placeholder="https://yourwebsite.com"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
@@ -178,18 +180,15 @@ export default function ProfileSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   saveButton: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6366f1',
     marginRight: 8,
   },
   avatarSection: {
@@ -200,19 +199,16 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   avatarText: {
-    color: '#fff',
     fontSize: 32,
     fontWeight: 'bold',
   },
   changeAvatarText: {
     fontSize: 14,
-    color: '#6366f1',
     fontWeight: '600',
   },
   form: {
@@ -224,15 +220,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94a3b8',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1e293b',
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
-    color: '#fff',
   },
   textArea: {
     minHeight: 100,
@@ -240,7 +233,6 @@ const styles = StyleSheet.create({
   },
   charCount: {
     fontSize: 12,
-    color: '#64748b',
     textAlign: 'right',
     marginTop: 4,
   },

@@ -9,6 +9,7 @@ import {
 import { router } from 'expo-router';
 import { supabase } from '../services/supabase';
 import { syncDatabase } from '../db/sync';
+import colors from '@/utils/colors';
 
 interface UserListItemProps {
   userId: string;
@@ -108,7 +109,7 @@ export default function UserListItem({
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.textPrimary} />
           ) : (
             <Text
               style={[
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
@@ -138,13 +139,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   avatarText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -155,11 +156,11 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textPrimary,
   },
   bio: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   followButton: {
@@ -170,19 +171,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   notFollowingButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
   },
   followingButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.transparent,
     borderWidth: 1,
-    borderColor: '#6366f1',
+    borderColor: colors.primary,
   },
   followButtonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 14,
     fontWeight: '600',
   },
   followingButtonText: {
-    color: '#6366f1',
+    color: colors.primary,
   },
 });

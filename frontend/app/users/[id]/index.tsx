@@ -29,6 +29,7 @@ import type UserLevel from '../../../src/db/models/UserLevel';
 import type UserBadge from '../../../src/db/models/UserBadge';
 import type Achievement from '../../../src/db/models/Achievement';
 import type Workout from '../../../src/db/models/Workout';
+import { useTheme } from '../../../src/hooks/useTheme';
 
 interface BadgeWithAchievement {
   id: string;
@@ -48,6 +49,7 @@ interface RecentWorkout {
 export default function UserProfileScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();
   const { user: currentUser } = useAuthStore();
+  const colors = useTheme();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
@@ -339,18 +341,18 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (!profileUser) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>User not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>User not found</Text>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.primary }]} onPress={() => router.back()}>
+          <Text style={[styles.backButtonText, { color: colors.background }]}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -358,32 +360,32 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#6366f1"
-          colors={['#6366f1']}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
         />
       }
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity style={styles.backArrow} onPress={() => router.back()}>
-          <Text style={styles.backArrowText}>{'<'}</Text>
+          <Text style={[styles.backArrowText, { color: colors.textPrimary }]}>{'<'}</Text>
         </TouchableOpacity>
 
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.avatarText, { color: colors.background }]}>
             {profileUser.username?.[0]?.toUpperCase() || 'U'}
           </Text>
         </View>
 
-        <Text style={styles.username}>@{profileUser.username}</Text>
+        <Text style={[styles.username, { color: colors.textPrimary }]}>@{profileUser.username}</Text>
 
         {profileUser.bio && (
-          <Text style={styles.bio}>{profileUser.bio}</Text>
+          <Text style={[styles.bio, { color: colors.textSecondary }]}>{profileUser.bio}</Text>
         )}
 
         {/* Follow Stats */}
@@ -392,18 +394,18 @@ export default function UserProfileScreen() {
             style={styles.followStatItem}
             onPress={() => router.push(`/users/${userId}/followers`)}
           >
-            <Text style={styles.followStatValue}>{followersCount}</Text>
-            <Text style={styles.followStatLabel}>Followers</Text>
+            <Text style={[styles.followStatValue, { color: colors.textPrimary }]}>{followersCount}</Text>
+            <Text style={[styles.followStatLabel, { color: colors.textSecondary }]}>Followers</Text>
           </TouchableOpacity>
 
-          <View style={styles.followStatDivider} />
+          <View style={[styles.followStatDivider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity
             style={styles.followStatItem}
             onPress={() => router.push(`/users/${userId}/following`)}
           >
-            <Text style={styles.followStatValue}>{followingCount}</Text>
-            <Text style={styles.followStatLabel}>Following</Text>
+            <Text style={[styles.followStatValue, { color: colors.textPrimary }]}>{followingCount}</Text>
+            <Text style={[styles.followStatLabel, { color: colors.textSecondary }]}>Following</Text>
           </TouchableOpacity>
         </View>
 
@@ -412,14 +414,14 @@ export default function UserProfileScreen() {
           <View style={styles.actionButtons}>
             {isBlocked ? (
               <TouchableOpacity
-                style={[styles.actionButton, styles.unblockButton]}
+                style={[styles.actionButton, { backgroundColor: colors.error }]}
                 onPress={handleUnblock}
                 disabled={actionLoading}
               >
                 {actionLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.white} />
                 ) : (
-                  <Text style={styles.actionButtonText}>Unblock</Text>
+                  <Text style={[styles.actionButtonText, { color: colors.white }]}>Unblock</Text>
                 )}
               </TouchableOpacity>
             ) : (
@@ -427,26 +429,28 @@ export default function UserProfileScreen() {
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
-                    isFollowing ? styles.followingButton : styles.followButton,
+                    isFollowing 
+                      ? { backgroundColor: colors.surfaceElevated, borderColor: colors.primary, borderWidth: 1 }
+                      : { backgroundColor: colors.primary },
                   ]}
                   onPress={isFollowing ? handleUnfollow : handleFollow}
                   disabled={actionLoading}
                 >
                   {actionLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={colors.white} />
                   ) : (
-                    <Text style={styles.actionButtonText}>
+                    <Text style={[styles.actionButtonText, { color: colors.white }]}>
                       {isFollowing ? 'Following' : 'Follow'}
                     </Text>
                   )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.blockButton]}
+                  style={[styles.actionButton, { backgroundColor: colors.transparent, borderColor: colors.error, borderWidth: 1 }]}
                   onPress={handleBlock}
                   disabled={actionLoading}
                 >
-                  <Text style={styles.blockButtonText}>Block</Text>
+                  <Text style={[styles.blockButtonText, { color: colors.error }]}>Block</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -456,28 +460,28 @@ export default function UserProfileScreen() {
 
       {/* Stats */}
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{userLevel?.level || 1}</Text>
-          <Text style={styles.statLabel}>Level</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{userLevel?.level || 1}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Level</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>
             {userLevel?.totalXp?.toLocaleString() || '0'}
           </Text>
-          <Text style={styles.statLabel}>Total XP</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total XP</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{badges.length}</Text>
-          <Text style={styles.statLabel}>Badges</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{badges.length}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Badges</Text>
         </View>
       </View>
 
       {/* Badges */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Achievements</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Achievements</Text>
         {badges.length === 0 ? (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyText}>No badges earned yet</Text>
+          <View style={[styles.emptySection, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No badges earned yet</Text>
           </View>
         ) : (
           <View>
@@ -496,22 +500,22 @@ export default function UserProfileScreen() {
 
       {/* Recent Workouts */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Workouts</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Workouts</Text>
         {recentWorkouts.length === 0 ? (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyText}>No public workouts</Text>
+          <View style={[styles.emptySection, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No public workouts</Text>
           </View>
         ) : (
           <View>
             {recentWorkouts.map((workout) => (
-              <View key={workout.id} style={styles.workoutCard}>
+              <View key={workout.id} style={[styles.workoutCard, { backgroundColor: colors.surface }]}>
                 <View style={styles.workoutInfo}>
-                  <Text style={styles.workoutName}>{workout.name}</Text>
-                  <Text style={styles.workoutDate}>
+                  <Text style={[styles.workoutName, { color: colors.textPrimary }]}>{workout.name}</Text>
+                  <Text style={[styles.workoutDate, { color: colors.textSecondary }]}>
                     {formatDate(workout.startedAt)}
                   </Text>
                 </View>
-                <Text style={styles.workoutDuration}>
+                <Text style={[styles.workoutDuration, { color: colors.textMuted }]}>
                   {formatDuration(workout.startedAt, workout.endedAt)}
                 </Text>
               </View>
@@ -529,34 +533,28 @@ export default function UserProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
     padding: 24,
   },
   errorText: {
     fontSize: 18,
-    color: '#94a3b8',
     marginBottom: 16,
   },
   backButton: {
-    backgroundColor: '#6366f1',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   backButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -564,9 +562,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     paddingTop: 60,
-    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   backArrow: {
     position: 'absolute',
@@ -576,14 +572,12 @@ const styles = StyleSheet.create({
   },
   backArrowText: {
     fontSize: 24,
-    color: '#fff',
     fontWeight: 'bold',
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -591,17 +585,14 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 40,
     fontWeight: 'bold',
-    color: '#fff',
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   bio: {
     fontSize: 15,
-    color: '#94a3b8',
     textAlign: 'center',
     maxWidth: '80%',
     marginBottom: 16,
@@ -618,17 +609,14 @@ const styles = StyleSheet.create({
   followStatValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
   },
   followStatLabel: {
     fontSize: 14,
-    color: '#94a3b8',
     marginTop: 2,
   },
   followStatDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#334155',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -641,29 +629,11 @@ const styles = StyleSheet.create({
     minWidth: 100,
     alignItems: 'center',
   },
-  followButton: {
-    backgroundColor: '#6366f1',
-  },
-  followingButton: {
-    backgroundColor: '#334155',
-    borderWidth: 1,
-    borderColor: '#6366f1',
-  },
-  blockButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-  },
-  unblockButton: {
-    backgroundColor: '#7f1d1d',
-  },
   actionButtonText: {
-    color: '#fff',
     fontSize: 15,
     fontWeight: '600',
   },
   blockButtonText: {
-    color: '#ef4444',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -674,7 +644,6 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -682,11 +651,9 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statLabel: {
     fontSize: 13,
-    color: '#94a3b8',
     marginTop: 4,
   },
   section: {
@@ -696,21 +663,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 12,
   },
   emptySection: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 15,
-    color: '#64748b',
   },
   workoutCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -724,16 +687,13 @@ const styles = StyleSheet.create({
   workoutName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#fff',
     marginBottom: 4,
   },
   workoutDate: {
     fontSize: 13,
-    color: '#94a3b8',
   },
   workoutDuration: {
     fontSize: 14,
-    color: '#6366f1',
     fontWeight: '500',
   },
   footer: {

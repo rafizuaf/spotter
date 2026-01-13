@@ -15,6 +15,7 @@ import { database, exercisesCollection } from '../db';
 import { useAuthStore } from '../stores/authStore';
 import { v4 as uuid } from 'uuid';
 import type Exercise from '../db/models/Exercise';
+import colors, { withOpacity } from '@/utils/colors';
 
 interface ExercisePickerProps {
   visible: boolean;
@@ -200,7 +201,7 @@ export default function ExercisePicker({
               <TextInput
                 style={styles.formInput}
                 placeholder="Exercise Name *"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={colors.textMuted}
                 value={customExerciseName}
                 onChangeText={setCustomExerciseName}
               />
@@ -236,7 +237,7 @@ export default function ExercisePicker({
               <TextInput
                 style={[styles.formInput, styles.instructionsInput]}
                 placeholder="Instructions (optional)"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={colors.textMuted}
                 value={customInstructions}
                 onChangeText={setCustomInstructions}
                 multiline
@@ -263,7 +264,7 @@ export default function ExercisePicker({
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search exercises..."
-                placeholderTextColor="#64748b"
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
@@ -328,11 +329,11 @@ export default function ExercisePicker({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: withOpacity(colors.black, 0.7),
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '85%',
@@ -348,15 +349,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.textPrimary,
   },
   closeButton: {
     fontSize: 28,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontWeight: '300',
   },
   createButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 20,
@@ -364,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -373,16 +374,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   formInput: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
   },
   formLabel: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   instructionsInput: {
@@ -396,35 +397,35 @@ const styles = StyleSheet.create({
   },
   cancelFormButton: {
     flex: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   cancelFormButtonText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
   saveFormButton: {
     flex: 1,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   saveFormButtonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },
   searchInput: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 20,
     marginBottom: 16,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
   },
   muscleGroupScroll: {
@@ -435,22 +436,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   muscleGroupChip: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
   },
   muscleGroupChipActive: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
   },
   muscleGroupText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
   },
   muscleGroupTextActive: {
-    color: '#fff',
+    color: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 16,
   },
   emptyContainer: {
@@ -468,13 +469,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyText: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
   },
   emptySubtext: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   exerciseList: {
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   exerciseItem: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -494,17 +495,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exerciseName: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   muscleGroup: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   selectIcon: {
-    color: '#6366f1',
+    color: colors.primary,
     fontSize: 24,
     fontWeight: '300',
   },

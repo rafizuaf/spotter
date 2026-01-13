@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import type UserBodyLog from '../db/models/UserBodyLog';
+import colors from '@/utils/colors';
 
 interface BodyChartProps {
   logs: UserBodyLog[];
@@ -172,7 +173,7 @@ export default function BodyChart({ logs, metric }: BodyChartProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   statsRow: {
@@ -193,17 +194,17 @@ const styles = StyleSheet.create({
   currentValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.textPrimary,
   },
   change: {
     fontSize: 14,
     fontWeight: '600',
   },
   changePositive: {
-    color: '#22c55e',
+    color: colors.success,
   },
   changeNegative: {
-    color: '#ef4444',
+    color: colors.error,
   },
   chartContainer: {
     flexDirection: 'row',
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
   },
   axisLabel: {
     fontSize: 10,
-    color: '#64748b',
+    color: colors.textMuted,
     textAlign: 'right',
     paddingRight: 8,
   },
@@ -229,12 +230,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
   },
   lineSegment: {
     position: 'absolute',
     height: 2,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     transformOrigin: 'left center',
   },
   dataPoint: {
@@ -242,9 +243,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     borderWidth: 2,
-    borderColor: '#1e293b',
+    borderColor: colors.surface,
   },
   dateRange: {
     flexDirection: 'row',
@@ -254,10 +255,10 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 10,
-    color: '#64748b',
+    color: colors.textMuted,
   },
   emptyContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
@@ -265,11 +266,11 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textMuted,
   },
 });

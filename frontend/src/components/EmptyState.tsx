@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import colors from '@/utils/colors';
 
 interface EmptyStateProps {
   icon?: string;
@@ -47,26 +48,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   message: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
     maxWidth: 280,
   },
   button: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 14,
     fontWeight: '600',
   },

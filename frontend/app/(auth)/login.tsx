@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading, error, clearError } = useAuthStore();
+  const colors = useTheme();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -32,29 +34,29 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Spotter</Text>
-          <Text style={styles.subtitle}>Track your gains</Text>
+          <Text style={[styles.title, { color: colors.primary }]}>Spotter</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Track your gains</Text>
         </View>
 
         <View style={styles.form}>
           {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorContainer, { backgroundColor: colors.error }]}>
+              <Text style={[styles.errorText, { color: colors.textPrimary }]}>{error}</Text>
               <TouchableOpacity onPress={clearError}>
-                <Text style={styles.errorDismiss}>Dismiss</Text>
+                <Text style={[styles.errorDismiss, { color: colors.textPrimary }]}>Dismiss</Text>
               </TouchableOpacity>
             </View>
           )}
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
             placeholder="Email"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -63,9 +65,9 @@ export default function LoginScreen() {
           />
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
             placeholder="Password"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -73,22 +75,22 @@ export default function LoginScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: colors.primary }, isLoading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.background} />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={[styles.buttonText, { color: colors.background }]}>Sign In</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
             <Link href="/(auth)/register" asChild>
               <TouchableOpacity>
-                <Text style={styles.link}>Sign Up</Text>
+                <Text style={[styles.link, { color: colors.primary }]}>Sign Up</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -101,7 +103,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   content: {
     flex: 1,
@@ -115,27 +116,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    color: '#94a3b8',
   },
   form: {
     gap: 16,
   },
   input: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
     borderWidth: 1,
-    borderColor: '#334155',
   },
   button: {
-    backgroundColor: '#6366f1',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -145,7 +140,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -155,16 +149,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: '#94a3b8',
     fontSize: 16,
   },
   link: {
-    color: '#6366f1',
     fontSize: 16,
     fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: '#7f1d1d',
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -172,11 +163,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#fecaca',
     flex: 1,
   },
   errorDismiss: {
-    color: '#fecaca',
     fontWeight: '600',
     marginLeft: 8,
   },

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useTheme } from '../../src/hooks/useTheme';
 
 interface SettingsItem {
   label: string;
@@ -38,6 +39,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 
 export default function SettingsScreen() {
   const { logout, user } = useAuthStore();
+  const colors = useTheme();
 
   const handleLogout = async () => {
     Alert.alert(
@@ -60,41 +62,41 @@ export default function SettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Settings' }} />
-      <ScrollView style={styles.container}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
         {/* User info header */}
-        <View style={styles.userHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+        <View style={[styles.userHeader, { backgroundColor: colors.surface }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.background }]}>
               {(user?.user_metadata?.username as string)?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
             </Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.username}>@{(user?.user_metadata?.username as string) || 'User'}</Text>
-            <Text style={styles.email}>{user?.email || ''}</Text>
+            <Text style={[styles.username, { color: colors.textPrimary }]}>@{(user?.user_metadata?.username as string) || 'User'}</Text>
+            <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email || ''}</Text>
           </View>
         </View>
 
         {/* Settings sections */}
         {SETTINGS_SECTIONS.map((section) => (
           <View key={section.title} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.sectionContent}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>{section.title}</Text>
+            <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
               {section.items.map((item, index) => (
                 <TouchableOpacity
                   key={item.route}
                   style={[
                     styles.settingsItem,
-                    index < section.items.length - 1 && styles.settingsItemBorder,
+                    index < section.items.length - 1 && { borderBottomColor: colors.border },
                   ]}
                   onPress={() => router.push(item.route as never)}
                 >
                   <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemLabel}>{item.label}</Text>
+                    <Text style={[styles.settingsItemLabel, { color: colors.textPrimary }]}>{item.label}</Text>
                     {item.description && (
-                      <Text style={styles.settingsItemDescription}>{item.description}</Text>
+                      <Text style={[styles.settingsItemDescription, { color: colors.textMuted }]}>{item.description}</Text>
                     )}
                   </View>
-                  <Text style={styles.chevron}>›</Text>
+                  <Text style={[styles.chevron, { color: colors.textMuted }]}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -102,12 +104,12 @@ export default function SettingsScreen() {
         ))}
 
         {/* Logout button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
+        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.surface }]} onPress={handleLogout}>
+          <Text style={[styles.logoutButtonText, { color: colors.error }]}>Logout</Text>
         </TouchableOpacity>
 
         {/* Version info */}
-        <Text style={styles.version}>Spotter v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>Spotter v1.0.0</Text>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -118,26 +120,22 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#1e293b',
     marginBottom: 24,
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
   avatarText: {
-    color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
   },
@@ -147,11 +145,9 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
   },
   email: {
     fontSize: 14,
-    color: '#94a3b8',
     marginTop: 2,
   },
   section: {
@@ -161,13 +157,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748b',
     textTransform: 'uppercase',
     marginBottom: 8,
     marginLeft: 4,
   },
   sectionContent: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -175,44 +169,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-  },
-  settingsItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   settingsItemContent: {
     flex: 1,
   },
   settingsItemLabel: {
     fontSize: 16,
-    color: '#fff',
   },
   settingsItemDescription: {
     fontSize: 13,
-    color: '#64748b',
     marginTop: 2,
   },
   chevron: {
     fontSize: 20,
-    color: '#64748b',
     marginLeft: 8,
   },
   logoutButton: {
     marginHorizontal: 16,
     marginTop: 8,
     padding: 16,
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     alignItems: 'center',
   },
   logoutButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ef4444',
   },
   version: {
     textAlign: 'center',
-    color: '#64748b',
     fontSize: 12,
     marginTop: 24,
   },

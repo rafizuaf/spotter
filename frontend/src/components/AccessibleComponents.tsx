@@ -22,6 +22,7 @@ import {
   getStateA11yProps,
   minTouchTarget,
 } from '../utils/accessibility';
+import colors from '@/utils/colors';
 
 /**
  * AccessibleButton - TouchableOpacity with proper accessibility props
@@ -107,7 +108,7 @@ export const AccessibleHeader = React.memo(function AccessibleHeader({
     <Text
       {...props}
       {...getHeaderA11yProps()}
-      style={[{ fontSize, fontWeight: 'bold', color: '#fff' }, style]}
+      style={[{ fontSize, fontWeight: 'bold', color: colors.textPrimary }, style]}
     >
       {children}
     </Text>
@@ -145,7 +146,7 @@ export const AccessibleInput = React.memo(function AccessibleInput({
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={hint}
         style={[styles.input, error && styles.inputError, style]}
-        placeholderTextColor="#64748b"
+        placeholderTextColor={colors.textMuted}
       />
       {error && (
         <Text
@@ -187,8 +188,8 @@ export const AccessibleSwitch = React.memo(function AccessibleSwitch({
         accessibilityLabel={`${label}, ${value ? 'on' : 'off'}`}
         accessibilityRole="switch"
         {...getStateA11yProps({ checked: value })}
-        trackColor={{ false: '#334155', true: '#6366f1' }}
-        thumbColor={value ? '#fff' : '#94a3b8'}
+        trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+        thumbColor={value ? colors.textPrimary : colors.textSecondary}
       />
     </View>
   );
@@ -347,25 +348,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputLabel: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
     marginBottom: 8,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: colors.transparent,
   },
   inputError: {
-    borderColor: '#ef4444',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#ef4444',
+    color: colors.error,
     fontSize: 12,
     marginTop: 4,
   },
@@ -380,11 +381,11 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   switchLabel: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
   },
   switchDescription: {
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 2,
   },
@@ -397,23 +398,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   progressLabel: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   progressValue: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
   progressTrack: {
     height: 8,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 4,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     borderRadius: 4,
   },
   screenReaderOnly: {
@@ -428,12 +429,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -100,
     left: 0,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     padding: 16,
     zIndex: 9999,
   },
   skipLinkText: {
-    color: '#fff',
+    color: colors.background,
     fontWeight: '600',
   },
 });

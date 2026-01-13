@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, ViewStyle, DimensionValue } from 'react-native';
+import colors from '@/utils/colors';
 
 interface SkeletonLoaderProps {
   width?: DimensionValue;
@@ -149,10 +150,10 @@ export function SkeletonList({ count = 5, ItemComponent }: SkeletonListProps) {
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
   },
   cardContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
   userItemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
   notificationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   feedPostContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,

@@ -16,9 +16,11 @@ import { syncDatabase } from '../src/db/sync';
 import BodyLogForm from '../src/components/BodyLogForm';
 import BodyChart from '../src/components/BodyChart';
 import type UserBodyLog from '../src/db/models/UserBodyLog';
+import { useTheme } from '../src/hooks/useTheme';
 
 export default function BodyTrackingScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [logs, setLogs] = useState<UserBodyLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,8 +75,8 @@ export default function BodyTrackingScreen() {
 
   if (!user) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.emptyText}>Please log in to track your body measurements</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.textPrimary }]}>Please log in to track your body measurements</Text>
       </View>
     );
   }
@@ -85,35 +87,36 @@ export default function BodyTrackingScreen() {
         options={{
           title: 'Body Tracking',
           headerRight: () => (
-            <TouchableOpacity onPress={() => setShowForm(true)} style={styles.addButton}>
-              <Text style={styles.addButtonText}>+ Add</Text>
+            <TouchableOpacity onPress={() => setShowForm(true)} style={[styles.addButton, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.addButtonText, { color: colors.background }]}>+ Add</Text>
             </TouchableOpacity>
           ),
         }}
       />
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.background }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#6366f1"
+            tintColor={colors.primary}
           />
         }
       >
         {/* Metric Selector */}
-        <View style={styles.metricSelector}>
+        <View style={[styles.metricSelector, { backgroundColor: colors.surface }]}>
           <TouchableOpacity
             style={[
               styles.metricButton,
-              selectedMetric === 'weight' && styles.metricButtonActive,
+              selectedMetric === 'weight' && { backgroundColor: colors.primary },
             ]}
             onPress={() => setSelectedMetric('weight')}
           >
             <Text
               style={[
                 styles.metricButtonText,
-                selectedMetric === 'weight' && styles.metricButtonTextActive,
+                { color: colors.textSecondary },
+                selectedMetric === 'weight' && { color: colors.background },
               ]}
             >
               Weight
@@ -122,14 +125,15 @@ export default function BodyTrackingScreen() {
           <TouchableOpacity
             style={[
               styles.metricButton,
-              selectedMetric === 'bodyFat' && styles.metricButtonActive,
+              selectedMetric === 'bodyFat' && { backgroundColor: colors.primary },
             ]}
             onPress={() => setSelectedMetric('bodyFat')}
           >
             <Text
               style={[
                 styles.metricButtonText,
-                selectedMetric === 'bodyFat' && styles.metricButtonTextActive,
+                { color: colors.textSecondary },
+                selectedMetric === 'bodyFat' && { color: colors.background },
               ]}
             >
               Body Fat
@@ -141,59 +145,59 @@ export default function BodyTrackingScreen() {
         <BodyChart logs={logs} metric={selectedMetric} />
 
         {/* Recent Logs */}
-        <Text style={styles.sectionTitle}>Recent Logs</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Logs</Text>
         {logs.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No body logs yet</Text>
-            <Text style={styles.emptySubtext}>
+          <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No body logs yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
               Tap the + Add button to log your measurements
             </Text>
           </View>
         ) : (
           logs.slice(0, 10).map((log) => (
-            <View key={log.id} style={styles.logCard}>
+            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.surface }]}>
               <View style={styles.logHeader}>
-                <Text style={styles.logDate}>{formatDate(log.loggedAt)}</Text>
+                <Text style={[styles.logDate, { color: colors.textSecondary }]}>{formatDate(log.loggedAt)}</Text>
                 {log.weightKg && (
-                  <Text style={styles.logWeight}>{log.weightKg.toFixed(1)} kg</Text>
+                  <Text style={[styles.logWeight, { color: colors.primary }]}>{log.weightKg.toFixed(1)} kg</Text>
                 )}
               </View>
 
               {(log.bodyFatPct || log.waistCm || log.chestCm) && (
-                <View style={styles.logDetails}>
+                <View style={[styles.logDetails, { borderTopColor: colors.border }]}>
                   {log.bodyFatPct && (
                     <View style={styles.logDetail}>
-                      <Text style={styles.logDetailLabel}>Body Fat</Text>
-                      <Text style={styles.logDetailValue}>{log.bodyFatPct.toFixed(1)}%</Text>
+                      <Text style={[styles.logDetailLabel, { color: colors.textMuted }]}>Body Fat</Text>
+                      <Text style={[styles.logDetailValue, { color: colors.textPrimary }]}>{log.bodyFatPct.toFixed(1)}%</Text>
                     </View>
                   )}
                   {log.chestCm && (
                     <View style={styles.logDetail}>
-                      <Text style={styles.logDetailLabel}>Chest</Text>
-                      <Text style={styles.logDetailValue}>{log.chestCm.toFixed(1)} cm</Text>
+                      <Text style={[styles.logDetailLabel, { color: colors.textMuted }]}>Chest</Text>
+                      <Text style={[styles.logDetailValue, { color: colors.textPrimary }]}>{log.chestCm.toFixed(1)} cm</Text>
                     </View>
                   )}
                   {log.waistCm && (
                     <View style={styles.logDetail}>
-                      <Text style={styles.logDetailLabel}>Waist</Text>
-                      <Text style={styles.logDetailValue}>{log.waistCm.toFixed(1)} cm</Text>
+                      <Text style={[styles.logDetailLabel, { color: colors.textMuted }]}>Waist</Text>
+                      <Text style={[styles.logDetailValue, { color: colors.textPrimary }]}>{log.waistCm.toFixed(1)} cm</Text>
                     </View>
                   )}
                 </View>
               )}
 
               {(log.bicepLeftCm || log.bicepRightCm) && (
-                <View style={styles.logDetails}>
+                <View style={[styles.logDetails, { borderTopColor: colors.border }]}>
                   {log.bicepLeftCm && (
                     <View style={styles.logDetail}>
-                      <Text style={styles.logDetailLabel}>L Bicep</Text>
-                      <Text style={styles.logDetailValue}>{log.bicepLeftCm.toFixed(1)} cm</Text>
+                      <Text style={[styles.logDetailLabel, { color: colors.textMuted }]}>L Bicep</Text>
+                      <Text style={[styles.logDetailValue, { color: colors.textPrimary }]}>{log.bicepLeftCm.toFixed(1)} cm</Text>
                     </View>
                   )}
                   {log.bicepRightCm && (
                     <View style={styles.logDetail}>
-                      <Text style={styles.logDetailLabel}>R Bicep</Text>
-                      <Text style={styles.logDetailValue}>{log.bicepRightCm.toFixed(1)} cm</Text>
+                      <Text style={[styles.logDetailLabel, { color: colors.textMuted }]}>R Bicep</Text>
+                      <Text style={[styles.logDetailValue, { color: colors.textPrimary }]}>{log.bicepRightCm.toFixed(1)} cm</Text>
                     </View>
                   )}
                 </View>
@@ -207,12 +211,12 @@ export default function BodyTrackingScreen() {
 
       {/* Add Log Modal */}
       <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
             <TouchableOpacity onPress={() => setShowForm(false)}>
-              <Text style={styles.modalCancel}>Cancel</Text>
+              <Text style={[styles.modalCancel, { color: colors.primary }]}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>New Body Log</Text>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>New Body Log</Text>
             <View style={styles.modalPlaceholder} />
           </View>
           <BodyLogForm
@@ -229,24 +233,20 @@ export default function BodyTrackingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
     padding: 16,
   },
   addButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#6366f1',
     borderRadius: 6,
     marginRight: 8,
   },
   addButtonText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
   metricSelector: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
     borderRadius: 8,
     padding: 4,
     marginBottom: 16,
@@ -257,41 +257,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 6,
   },
-  metricButtonActive: {
-    backgroundColor: '#6366f1',
-  },
   metricButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94a3b8',
-  },
-  metricButtonTextActive: {
-    color: '#fff',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 12,
   },
   emptyCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 16,
-    color: '#fff',
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
   logCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -304,17 +292,14 @@ const styles = StyleSheet.create({
   },
   logDate: {
     fontSize: 14,
-    color: '#94a3b8',
   },
   logWeight: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
   },
   logDetails: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: '#334155',
     paddingTop: 8,
     marginTop: 8,
   },
@@ -323,19 +308,16 @@ const styles = StyleSheet.create({
   },
   logDetailLabel: {
     fontSize: 12,
-    color: '#64748b',
     marginBottom: 2,
   },
   logDetailValue: {
     fontSize: 14,
-    color: '#fff',
   },
   bottomSpacer: {
     height: 40,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -343,16 +325,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
   },
   modalCancel: {
     fontSize: 16,
-    color: '#6366f1',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
   },
   modalPlaceholder: {
     width: 50,

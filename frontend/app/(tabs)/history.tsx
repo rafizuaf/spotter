@@ -4,6 +4,7 @@ import { Q } from '@nozbe/watermelondb';
 import { workoutsCollection, workoutSetsCollection } from '../../src/db';
 import { useAuthStore } from '../../src/stores/authStore';
 import type Workout from '../../src/db/models/Workout';
+import { useTheme } from '../../src/hooks/useTheme';
 
 interface WorkoutWithStats {
   id: string;
@@ -18,6 +19,7 @@ interface WorkoutWithStats {
 
 export default function HistoryScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [workouts, setWorkouts] = useState<WorkoutWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -127,28 +129,28 @@ export default function HistoryScreen() {
   };
 
   const renderWorkout = ({ item }: { item: WorkoutWithStats }) => (
-    <TouchableOpacity style={styles.workoutCard}>
+    <TouchableOpacity style={[styles.workoutCard, { backgroundColor: colors.surface }]}>
       <View style={styles.workoutHeader}>
-        <Text style={styles.workoutName}>{item.name}</Text>
-        <Text style={styles.workoutDate}>{formatDate(item.date)}</Text>
+        <Text style={[styles.workoutName, { color: colors.textPrimary }]}>{item.name}</Text>
+        <Text style={[styles.workoutDate, { color: colors.textSecondary }]}>{formatDate(item.date)}</Text>
       </View>
       {item.note && (
-        <Text style={styles.workoutNote} numberOfLines={2}>
+        <Text style={[styles.workoutNote, { color: colors.textSecondary }]} numberOfLines={2}>
           {item.note}
         </Text>
       )}
-      <View style={styles.workoutStats}>
+      <View style={[styles.workoutStats, { borderTopColor: colors.border }]}>
         <View style={styles.stat}>
-          <Text style={styles.statValue}>{item.duration}</Text>
-          <Text style={styles.statLabel}>Duration</Text>
+          <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.duration}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Duration</Text>
         </View>
         <View style={styles.stat}>
-          <Text style={styles.statValue}>{item.exerciseCount}</Text>
-          <Text style={styles.statLabel}>Exercises</Text>
+          <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.exerciseCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Exercises</Text>
         </View>
         <View style={styles.stat}>
-          <Text style={styles.statValue}>{item.setCount}</Text>
-          <Text style={styles.statLabel}>Sets</Text>
+          <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.setCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Sets</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -156,9 +158,9 @@ export default function HistoryScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Loading...</Text>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Loading...</Text>
         </View>
       </View>
     );
@@ -166,11 +168,11 @@ export default function HistoryScreen() {
 
   if (workouts.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyTitle}>No Workout History</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Workout History</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
             Complete your first workout to see it here
           </Text>
         </View>
@@ -179,7 +181,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={workouts}
         renderItem={renderWorkout}
@@ -189,8 +191,8 @@ export default function HistoryScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#6366f1"
-            colors={['#6366f1']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       />
@@ -201,7 +203,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   listContent: {
     padding: 16,
@@ -219,16 +220,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#94a3b8',
     textAlign: 'center',
   },
   workoutCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -242,16 +240,13 @@ const styles = StyleSheet.create({
   workoutName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
     flex: 1,
   },
   workoutDate: {
     fontSize: 14,
-    color: '#94a3b8',
   },
   workoutNote: {
     fontSize: 14,
-    color: '#94a3b8',
     marginBottom: 12,
     fontStyle: 'italic',
   },
@@ -260,7 +255,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#334155',
   },
   stat: {
     alignItems: 'center',
@@ -268,11 +262,9 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 4,
   },
 });

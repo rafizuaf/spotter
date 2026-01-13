@@ -12,6 +12,7 @@ import {
 import { database, userBodyLogsCollection } from '../db';
 import { syncDatabase } from '../db/sync';
 import { v4 as uuid } from 'uuid';
+import colors from '@/utils/colors';
 
 interface BodyLogFormProps {
   userId: string;
@@ -119,7 +120,7 @@ export default function BodyLogForm({ userId, onSuccess, onCancel }: BodyLogForm
           onChangeText={(value) => updateField(field, value)}
           keyboardType="decimal-pad"
           placeholder={placeholder || '0'}
-          placeholderTextColor="#64748b"
+          placeholderTextColor={colors.textMuted}
         />
         <Text style={styles.unit}>{unit}</Text>
       </View>
@@ -163,7 +164,7 @@ export default function BodyLogForm({ userId, onSuccess, onCancel }: BodyLogForm
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={colors.background} size="small" />
           ) : (
             <Text style={styles.saveButtonText}>Save Log</Text>
           )}
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginTop: 16,
     marginBottom: 12,
   },
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     flex: 1,
     fontSize: 15,
-    color: '#fff',
+    color: colors.textPrimary,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -204,10 +205,10 @@ const styles = StyleSheet.create({
   input: {
     width: 80,
     height: 40,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingHorizontal: 12,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     textAlign: 'right',
   },
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     width: 30,
     marginLeft: 8,
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -225,20 +226,20 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     height: 48,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
     height: 48,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },

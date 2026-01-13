@@ -14,6 +14,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { database, userSettingsCollection } from '../../src/db';
 import { syncDatabase } from '../../src/db/sync';
 import type UserSettings from '../../src/db/models/UserSettings';
+import { useTheme } from '../../src/hooks/useTheme';
 
 type Visibility = 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
 
@@ -43,6 +44,7 @@ const VISIBILITY_OPTIONS: VisibilityOption[] = [
 
 export default function PrivacySettingsScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [visibility, setVisibility] = useState<Visibility>('FOLLOWERS');
   const [saving, setSaving] = useState(false);
@@ -96,8 +98,8 @@ export default function PrivacySettingsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -110,51 +112,54 @@ export default function PrivacySettingsScreen() {
           headerRight: () => (
             <TouchableOpacity onPress={handleSave} disabled={saving}>
               {saving ? (
-                <ActivityIndicator size="small" color="#6366f1" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Text style={styles.saveButton}>Save</Text>
+                <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
               )}
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView style={styles.container}>
-        <Text style={styles.description}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
           Control who can see your workouts by default. You can change visibility for individual
           workouts when you complete them.
         </Text>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Default Workout Visibility</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Default Workout Visibility</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             {VISIBILITY_OPTIONS.map((option, index) => (
               <TouchableOpacity
                 key={option.value}
                 style={[
                   styles.optionRow,
-                  index > 0 && styles.optionRowBorder,
+                  index > 0 && { borderTopColor: colors.border },
                 ]}
                 onPress={() => setVisibility(option.value)}
               >
                 <View style={styles.optionContent}>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                  <Text style={styles.optionDescription}>{option.description}</Text>
+                  <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>{option.label}</Text>
+                  <Text style={[styles.optionDescription, { color: colors.textMuted }]}>{option.description}</Text>
                 </View>
                 <View
                   style={[
                     styles.radioOuter,
-                    visibility === option.value && styles.radioOuterSelected,
+                    { borderColor: colors.textMuted },
+                    visibility === option.value && { borderColor: colors.primary },
                   ]}
                 >
-                  {visibility === option.value && <View style={styles.radioInner} />}
+                  {visibility === option.value && (
+                    <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />
+                  )}
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
+        <View style={[styles.infoBox, { backgroundColor: colors.surfaceElevated }]}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             Note: Even with public visibility, your workouts will never be shown to users
             you've blocked.
           </Text>
@@ -167,23 +172,19 @@ export default function PrivacySettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   saveButton: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6366f1',
     marginRight: 8,
   },
   description: {
     fontSize: 14,
-    color: '#94a3b8',
     padding: 16,
     lineHeight: 20,
   },
@@ -194,13 +195,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748b',
     textTransform: 'uppercase',
     marginBottom: 8,
     marginLeft: 4,
   },
   card: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -208,10 +207,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-  },
-  optionRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: '#334155',
   },
   optionContent: {
     flex: 1,
@@ -219,12 +215,10 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: 16,
-    color: '#fff',
     fontWeight: '500',
   },
   optionDescription: {
     fontSize: 13,
-    color: '#64748b',
     marginTop: 2,
   },
   radioOuter: {
@@ -232,28 +226,21 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#64748b',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: '#6366f1',
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#6366f1',
   },
   infoBox: {
     margin: 16,
     padding: 16,
-    backgroundColor: '#1e3a5f',
     borderRadius: 8,
   },
   infoText: {
     fontSize: 13,
-    color: '#94a3b8',
     lineHeight: 18,
   },
 });

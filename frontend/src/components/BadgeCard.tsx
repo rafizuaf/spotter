@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import colors from '@/utils/colors';
 
 interface BadgeCardProps {
   title: string;
@@ -42,7 +43,7 @@ export default function BadgeCard({ title, description, earnedAt, isRusty }: Bad
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -52,13 +53,13 @@ const styles = StyleSheet.create({
   rustyContainer: {
     opacity: 0.6,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: colors.error,
   },
   iconContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.error,
   },
   content: {
     flex: 1,
@@ -82,16 +83,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   earnedText: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textMuted,
   },
 });

@@ -15,6 +15,8 @@ import { database, routinesCollection } from '../../src/db';
 import { useAuthStore } from '../../src/stores/authStore';
 import { v4 as uuid } from 'uuid';
 import type Routine from '../../src/db/models/Routine';
+import { useTheme } from '../../src/hooks/useTheme';
+import { withOpacity } from '@/utils/colors';
 
 interface RoutineWithStats {
   id: string;
@@ -27,6 +29,7 @@ interface RoutineWithStats {
 export default function RoutinesScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [routines, setRoutines] = useState<RoutineWithStats[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState('');
@@ -124,43 +127,43 @@ export default function RoutinesScreen() {
 
   const renderRoutine = ({ item }: { item: RoutineWithStats }) => (
     <TouchableOpacity
-      style={styles.routineCard}
+      style={[styles.routineCard, { backgroundColor: colors.surface }]}
       onPress={() => handleRoutinePress(item)}
     >
       <View style={styles.routineInfo}>
-        <Text style={styles.routineName}>{item.name}</Text>
-        <Text style={styles.routineExercises}>
+        <Text style={[styles.routineName, { color: colors.textPrimary }]}>{item.name}</Text>
+        <Text style={[styles.routineExercises, { color: colors.textSecondary }]}>
           {item.exerciseCount} {item.exerciseCount === 1 ? 'exercise' : 'exercises'}
         </Text>
       </View>
-      <Text style={styles.routineArrow}>→</Text>
+      <Text style={[styles.routineArrow, { color: colors.textMuted }]}>→</Text>
     </TouchableOpacity>
   );
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Loading...</Text>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Loading...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {routines.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyTitle}>No Routines Yet</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Routines Yet</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
             Create a routine to organize your workouts
           </Text>
           <TouchableOpacity
-            style={styles.createButton}
+            style={[styles.createButton, { backgroundColor: colors.primary }]}
             onPress={() => setIsModalVisible(true)}
           >
-            <Text style={styles.createButtonText}>Create Routine</Text>
+            <Text style={[styles.createButtonText, { color: colors.background }]}>Create Routine</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -174,16 +177,16 @@ export default function RoutinesScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor="#6366f1"
-                colors={['#6366f1']}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
               />
             }
           />
           <TouchableOpacity
-            style={styles.fab}
+            style={[styles.fab, { backgroundColor: colors.primary }]}
             onPress={() => setIsModalVisible(true)}
           >
-            <Text style={styles.fabText}>+</Text>
+            <Text style={[styles.fabText, { color: colors.background }]}>+</Text>
           </TouchableOpacity>
         </>
       )}
@@ -194,32 +197,32 @@ export default function RoutinesScreen() {
         animationType="fade"
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Routine</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: withOpacity(colors.black, 0.7) }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>New Routine</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
               placeholder="Routine name"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={newRoutineName}
               onChangeText={setNewRoutineName}
               autoFocus
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.modalCancel}
+                style={[styles.modalCancel, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => {
                   setNewRoutineName('');
                   setIsModalVisible(false);
                 }}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalCreate}
+                style={[styles.modalCreate, { backgroundColor: colors.primary }]}
                 onPress={createRoutine}
               >
-                <Text style={styles.modalCreateText}>Create</Text>
+                <Text style={[styles.modalCreateText, { color: colors.background }]}>Create</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -232,7 +235,6 @@ export default function RoutinesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   listContent: {
     padding: 16,
@@ -250,28 +252,23 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 24,
   },
   createButton: {
-    backgroundColor: '#6366f1',
     borderRadius: 12,
     padding: 16,
     paddingHorizontal: 32,
   },
   createButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
   routineCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -284,16 +281,13 @@ const styles = StyleSheet.create({
   routineName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
   },
   routineExercises: {
     fontSize: 14,
-    color: '#94a3b8',
     marginTop: 4,
   },
   routineArrow: {
     fontSize: 20,
-    color: '#64748b',
   },
   fab: {
     position: 'absolute',
@@ -302,28 +296,23 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
   fabText: {
     fontSize: 32,
-    color: '#fff',
     marginTop: -2,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 24,
     width: '85%',
@@ -332,15 +321,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 16,
   },
   modalInput: {
-    backgroundColor: '#334155',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
     marginBottom: 16,
   },
   modalButtons: {
@@ -351,11 +337,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#334155',
     alignItems: 'center',
   },
   modalCancelText: {
-    color: '#94a3b8',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -363,11 +347,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#6366f1',
     alignItems: 'center',
   },
   modalCreateText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

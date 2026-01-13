@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useWorkoutStore } from '../../src/stores/workoutStore';
 import ExercisePicker from '../../src/components/ExercisePicker';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function WorkoutScreen() {
   const {
@@ -31,6 +32,7 @@ export default function WorkoutScreen() {
     finishWorkout,
     cancelWorkout,
   } = useWorkoutStore();
+  const colors = useTheme();
 
   const [showExercisePicker, setShowExercisePicker] = useState(false);
 
@@ -91,14 +93,14 @@ export default function WorkoutScreen() {
 
   if (!isActive) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Active Workout</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Active Workout</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
             Start a new workout or select a routine
           </Text>
-          <TouchableOpacity style={styles.startButton} onPress={handleStartWorkout}>
-            <Text style={styles.startButtonText}>Start Empty Workout</Text>
+          <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.primary }]} onPress={handleStartWorkout}>
+            <Text style={[styles.startButtonText, { color: colors.background }]}>Start Empty Workout</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -106,44 +108,46 @@ export default function WorkoutScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.workoutHeader}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.workoutHeader, { borderBottomColor: colors.border }]}>
         <View style={styles.workoutHeaderTop}>
           <TextInput
-            style={styles.workoutTitle}
+            style={[styles.workoutTitle, { color: colors.textPrimary }]}
             value={workoutName}
             onChangeText={updateWorkoutName}
             placeholder="Workout Name"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
           />
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelWorkout}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+          <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.error }]} onPress={handleCancelWorkout}>
+            <Text style={[styles.cancelButtonText, { color: colors.white }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
         <TextInput
-          style={styles.workoutNote}
+          style={[styles.workoutNote, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={workoutNote}
           onChangeText={updateWorkoutNote}
           placeholder="Add workout notes..."
-          placeholderTextColor="#64748b"
+          placeholderTextColor={colors.textMuted}
           multiline
         />
 
         {/* Visibility Picker */}
         <View style={styles.visibilityContainer}>
-          <Text style={styles.visibilityLabel}>Visibility:</Text>
+          <Text style={[styles.visibilityLabel, { color: colors.textSecondary }]}>Visibility:</Text>
           <View style={styles.visibilityButtons}>
             <TouchableOpacity
               style={[
                 styles.visibilityButton,
-                visibility === 'PUBLIC' && styles.visibilityButtonActive,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                visibility === 'PUBLIC' && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
               onPress={() => updateVisibility('PUBLIC')}
             >
               <Text
                 style={[
                   styles.visibilityButtonText,
-                  visibility === 'PUBLIC' && styles.visibilityButtonTextActive,
+                  { color: colors.textSecondary },
+                  visibility === 'PUBLIC' && { color: colors.background },
                 ]}
               >
                 Public
@@ -152,14 +156,16 @@ export default function WorkoutScreen() {
             <TouchableOpacity
               style={[
                 styles.visibilityButton,
-                visibility === 'FOLLOWERS' && styles.visibilityButtonActive,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                visibility === 'FOLLOWERS' && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
               onPress={() => updateVisibility('FOLLOWERS')}
             >
               <Text
                 style={[
                   styles.visibilityButtonText,
-                  visibility === 'FOLLOWERS' && styles.visibilityButtonTextActive,
+                  { color: colors.textSecondary },
+                  visibility === 'FOLLOWERS' && { color: colors.background },
                 ]}
               >
                 Followers
@@ -168,14 +174,16 @@ export default function WorkoutScreen() {
             <TouchableOpacity
               style={[
                 styles.visibilityButton,
-                visibility === 'PRIVATE' && styles.visibilityButtonActive,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                visibility === 'PRIVATE' && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
               onPress={() => updateVisibility('PRIVATE')}
             >
               <Text
                 style={[
                   styles.visibilityButtonText,
-                  visibility === 'PRIVATE' && styles.visibilityButtonTextActive,
+                  { color: colors.textSecondary },
+                  visibility === 'PRIVATE' && { color: colors.background },
                 ]}
               >
                 Private
@@ -184,67 +192,71 @@ export default function WorkoutScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout}>
-          <Text style={styles.finishButtonText}>Finish Workout</Text>
+        <TouchableOpacity style={[styles.finishButton, { backgroundColor: colors.success }]} onPress={handleFinishWorkout}>
+          <Text style={[styles.finishButtonText, { color: colors.background }]}>Finish Workout</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.exerciseList}>
         {exercises.map((exercise) => (
-          <View key={exercise.id} style={styles.exerciseCard}>
+          <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: colors.surface }]}>
             <View style={styles.exerciseHeader}>
-              <Text style={styles.exerciseName}>{exercise.name}</Text>
+              <Text style={[styles.exerciseName, { color: colors.textPrimary }]}>{exercise.name}</Text>
               <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
-                <Text style={styles.removeExerciseText}>Remove</Text>
+                <Text style={[styles.removeExerciseText, { color: colors.error }]}>Remove</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.setHeader}>
-              <Text style={styles.setHeaderText}>SET</Text>
-              <Text style={styles.setHeaderText}>KG</Text>
-              <Text style={styles.setHeaderText}>REPS</Text>
-              <Text style={styles.setHeaderText}>RPE</Text>
+              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>SET</Text>
+              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>KG</Text>
+              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>REPS</Text>
+              <Text style={[styles.setHeaderText, { color: colors.textMuted }]}>RPE</Text>
               <Text style={styles.setHeaderText}></Text>
             </View>
 
             {exercise.sets.map((set, index) => (
               <View key={set.id} style={styles.setRow}>
-                <Text style={styles.setNumber}>{index + 1}</Text>
+                <Text style={[styles.setNumber, { color: colors.textPrimary }]}>{index + 1}</Text>
                 <TextInput
-                  style={styles.setInput}
+                  style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
                   value={set.weightKg}
                   onChangeText={(value) =>
                     updateSet(exercise.id, set.id, { weightKg: value })
                   }
                   placeholder="0"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
                 <TextInput
-                  style={styles.setInput}
+                  style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
                   value={set.reps}
                   onChangeText={(value) =>
                     updateSet(exercise.id, set.id, { reps: value })
                   }
                   placeholder="0"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
                 <TextInput
-                  style={styles.setInput}
+                  style={[styles.setInput, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
                   value={set.rpe || ''}
                   onChangeText={(value) =>
                     updateSet(exercise.id, set.id, { rpe: value })
                   }
                   placeholder="-"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
                 <TouchableOpacity
-                  style={[styles.checkButton, set.completed && styles.checkButtonActive]}
+                  style={[
+                    styles.checkButton,
+                    { backgroundColor: colors.surfaceElevated },
+                    set.completed && { backgroundColor: colors.success },
+                  ]}
                   onPress={() => toggleSetComplete(exercise.id, set.id)}
                 >
-                  <Text style={styles.checkText}>{set.completed ? '✓' : ''}</Text>
+                  <Text style={[styles.checkText, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -254,22 +266,22 @@ export default function WorkoutScreen() {
                 style={styles.addSetButton}
                 onPress={() => addSet(exercise.id)}
               >
-                <Text style={styles.addSetText}>+ Add Set</Text>
+                <Text style={[styles.addSetText, { color: colors.primary }]}>+ Add Set</Text>
               </TouchableOpacity>
               {exercise.sets.length > 0 && (
                 <TouchableOpacity
                   style={styles.removeSetButton}
                   onPress={() => removeSet(exercise.id, exercise.sets[exercise.sets.length - 1].id)}
                 >
-                  <Text style={styles.removeSetText}>Remove Last Set</Text>
+                  <Text style={[styles.removeSetText, { color: colors.error }]}>Remove Last Set</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
         ))}
 
-        <TouchableOpacity style={styles.addExerciseButton} onPress={handleAddExercise}>
-          <Text style={styles.addExerciseText}>+ Add Exercise</Text>
+        <TouchableOpacity style={[styles.addExerciseButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleAddExercise}>
+          <Text style={[styles.addExerciseText, { color: colors.primary }]}>+ Add Exercise</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -285,7 +297,6 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   emptyState: {
     flex: 1,
@@ -296,30 +307,25 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 24,
   },
   startButton: {
-    backgroundColor: '#6366f1',
     borderRadius: 12,
     padding: 16,
     paddingHorizontal: 32,
   },
   startButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
   workoutHeader: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   workoutHeaderTop: {
     flexDirection: 'row',
@@ -330,25 +336,20 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
   },
   cancelButton: {
-    backgroundColor: '#ef4444',
     borderRadius: 8,
     padding: 8,
     paddingHorizontal: 16,
     marginLeft: 8,
   },
   cancelButtonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
   },
   workoutNote: {
-    backgroundColor: '#1e293b',
     borderRadius: 8,
     padding: 12,
-    color: '#fff',
     marginBottom: 12,
     minHeight: 60,
   },
@@ -357,7 +358,6 @@ const styles = StyleSheet.create({
   },
   visibilityLabel: {
     fontSize: 14,
-    color: '#94a3b8',
     marginBottom: 8,
   },
   visibilityButtons: {
@@ -366,33 +366,21 @@ const styles = StyleSheet.create({
   },
   visibilityButton: {
     flex: 1,
-    backgroundColor: '#1e293b',
     borderRadius: 8,
     padding: 10,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#334155',
-  },
-  visibilityButtonActive: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
   },
   visibilityButtonText: {
-    color: '#94a3b8',
     fontSize: 14,
     fontWeight: '600',
   },
-  visibilityButtonTextActive: {
-    color: '#fff',
-  },
   finishButton: {
-    backgroundColor: '#22c55e',
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
   },
   finishButtonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 16,
   },
@@ -401,7 +389,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   exerciseCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -415,10 +402,8 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
   },
   removeExerciseText: {
-    color: '#ef4444',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -429,7 +414,6 @@ const styles = StyleSheet.create({
   setHeaderText: {
     flex: 1,
     fontSize: 12,
-    color: '#64748b',
     textAlign: 'center',
   },
   setRow: {
@@ -440,31 +424,23 @@ const styles = StyleSheet.create({
   setNumber: {
     flex: 1,
     fontSize: 16,
-    color: '#fff',
     textAlign: 'center',
   },
   setInput: {
     flex: 1,
-    backgroundColor: '#334155',
     borderRadius: 8,
     padding: 12,
     marginHorizontal: 4,
-    color: '#fff',
     textAlign: 'center',
   },
   checkButton: {
     flex: 1,
-    backgroundColor: '#334155',
     borderRadius: 8,
     padding: 12,
     marginLeft: 4,
     alignItems: 'center',
   },
-  checkButtonActive: {
-    backgroundColor: '#22c55e',
-  },
   checkText: {
-    color: '#fff',
     fontSize: 16,
   },
   setActions: {
@@ -478,7 +454,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addSetText: {
-    color: '#6366f1',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
@@ -488,23 +463,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   removeSetText: {
-    color: '#ef4444',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
   addExerciseButton: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#334155',
     borderStyle: 'dashed',
   },
   addExerciseText: {
-    color: '#6366f1',
     fontSize: 16,
     fontWeight: '600',
   },

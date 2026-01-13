@@ -9,6 +9,7 @@ import {
   ImageStyle,
   ViewStyle,
 } from 'react-native';
+import colors from '@/utils/colors';
 
 interface OptimizedImageProps extends Omit<ImageProps, 'source'> {
   uri: string | null | undefined;
@@ -91,7 +92,7 @@ const OptimizedImage = React.memo(function OptimizedImage({
       height,
       borderRadius,
       overflow: 'hidden' as const,
-      backgroundColor: '#334155',
+      backgroundColor: colors.surface,
       ...containerStyle,
     }),
     [width, height, borderRadius, containerStyle]
@@ -119,7 +120,7 @@ const OptimizedImage = React.memo(function OptimizedImage({
       />
       {isLoading && showLoader && (
         <View style={[styles.loaderContainer, imageStyle]}>
-          <ActivityIndicator size="small" color="#6366f1" />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
     </View>
@@ -164,7 +165,7 @@ export const Avatar = React.memo(function Avatar({
       >
         <Text
           style={{
-            color: '#fff',
+            color: colors.white,
             fontWeight: 'bold',
             fontSize: size * 0.4,
           }}
@@ -217,7 +218,7 @@ export const ThumbnailImage = React.memo(function ThumbnailImage({
         height,
         borderRadius,
         overflow: 'hidden',
-        backgroundColor: '#334155',
+        backgroundColor: colors.surface,
       }}
     >
       {/* Thumbnail (blurred placeholder) */}
@@ -250,22 +251,22 @@ const styles = StyleSheet.create({
   placeholderIcon: {
     width: '40%',
     height: '40%',
-    backgroundColor: '#475569',
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 4,
   },
   loaderContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#334155',
+    backgroundColor: colors.surface,
   },
   avatarPlaceholder: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitialsContainer: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: 'bold',
   },
 });

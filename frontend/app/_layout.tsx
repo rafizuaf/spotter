@@ -7,9 +7,11 @@ import {
   setupNotificationListeners,
   registerForPushNotifications,
 } from '../src/services/notifications';
+import { useTheme } from '../src/hooks/useTheme';
 
 export default function RootLayout() {
   const { isInitialized, initialize, user } = useAuthStore();
+  const colors = useTheme();
 
   useEffect(() => {
     initialize();
@@ -30,8 +32,8 @@ export default function RootLayout() {
 
   if (!isInitialized) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loading, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -42,14 +44,14 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#0f172a',
+            backgroundColor: colors.background,
           },
-          headerTintColor: '#fff',
+          headerTintColor: colors.textPrimary,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
           contentStyle: {
-            backgroundColor: '#0f172a',
+            backgroundColor: colors.background,
           },
         }}
       >
@@ -66,6 +68,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
 });

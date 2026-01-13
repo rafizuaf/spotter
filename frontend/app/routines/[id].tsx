@@ -16,6 +16,7 @@ import type Routine from '../../src/db/models/Routine';
 import type RoutineExercise from '../../src/db/models/RoutineExercise';
 import type Exercise from '../../src/db/models/Exercise';
 import { v4 as uuid } from 'uuid';
+import { useTheme } from '../../src/hooks/useTheme';
 
 interface RoutineExerciseWithDetails {
   id: string;
@@ -31,6 +32,7 @@ export default function RoutineDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { startWorkout } = useWorkoutStore();
+  const colors = useTheme();
 
   const [routineName, setRoutineName] = useState('');
   const [exercises, setExercises] = useState<RoutineExerciseWithDetails[]>([]);
@@ -204,55 +206,55 @@ export default function RoutineDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Loading...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={[styles.backText, { color: colors.primary }]}>← Back</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDeleteRoutine}>
-          <Text style={styles.deleteText}>Delete</Text>
+          <Text style={[styles.deleteText, { color: colors.error }]}>Delete</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.titleContainer}>
-        <Text style={styles.routineTitle}>{routineName}</Text>
-        <Text style={styles.exerciseCount}>
+      <View style={[styles.titleContainer, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.routineTitle, { color: colors.textPrimary }]}>{routineName}</Text>
+        <Text style={[styles.exerciseCount, { color: colors.textSecondary }]}>
           {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'}
         </Text>
       </View>
 
-      <TouchableOpacity style={styles.startWorkoutButton} onPress={handleStartWorkout}>
-        <Text style={styles.startWorkoutText}>Start Workout</Text>
+      <TouchableOpacity style={[styles.startWorkoutButton, { backgroundColor: colors.success }]} onPress={handleStartWorkout}>
+        <Text style={[styles.startWorkoutText, { color: colors.background }]}>Start Workout</Text>
       </TouchableOpacity>
 
       <ScrollView style={styles.exerciseList}>
         {exercises.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No exercises yet</Text>
-            <Text style={styles.emptySubtext}>Add exercises to this routine</Text>
+            <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No exercises yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Add exercises to this routine</Text>
           </View>
         ) : (
           exercises.map((exercise, index) => (
-            <View key={exercise.id} style={styles.exerciseCard}>
+            <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: colors.surface }]}>
               <View style={styles.exerciseHeader}>
-                <Text style={styles.exerciseNumber}>{index + 1}</Text>
+                <Text style={[styles.exerciseNumber, { color: colors.primary }]}>{index + 1}</Text>
                 <View style={styles.exerciseInfo}>
-                  <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-                  <Text style={styles.exerciseTarget}>
+                  <Text style={[styles.exerciseName, { color: colors.textPrimary }]}>{exercise.exerciseName}</Text>
+                  <Text style={[styles.exerciseTarget, { color: colors.textSecondary }]}>
                     {exercise.targetSets} sets × {exercise.targetReps} reps
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => handleRemoveExercise(exercise.serverId)}>
-                  <Text style={styles.removeButton}>✕</Text>
+                  <Text style={[styles.removeButton, { color: colors.error }]}>✕</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -260,10 +262,10 @@ export default function RoutineDetailScreen() {
         )}
 
         <TouchableOpacity
-          style={styles.addExerciseButton}
+          style={[styles.addExerciseButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => setShowExercisePicker(true)}
         >
-          <Text style={styles.addExerciseText}>+ Add Exercise</Text>
+          <Text style={[styles.addExerciseText, { color: colors.primary }]}>+ Add Exercise</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -279,7 +281,6 @@ export default function RoutineDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   header: {
     flexDirection: 'row',
@@ -288,18 +289,15 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 48,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   backButton: {
     padding: 8,
   },
   backText: {
-    color: '#6366f1',
     fontSize: 16,
     fontWeight: '500',
   },
   deleteText: {
-    color: '#ef4444',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -309,26 +307,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#fff',
     fontSize: 18,
   },
   titleContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   routineTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   exerciseCount: {
     fontSize: 16,
-    color: '#94a3b8',
   },
   startWorkoutButton: {
-    backgroundColor: '#22c55e',
     margin: 16,
     marginBottom: 8,
     padding: 16,
@@ -336,7 +329,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   startWorkoutText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -350,17 +342,14 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
   },
   emptySubtext: {
-    color: '#94a3b8',
     fontSize: 14,
   },
   exerciseCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -372,7 +361,6 @@ const styles = StyleSheet.create({
   exerciseNumber: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#6366f1',
     width: 32,
   },
   exerciseInfo: {
@@ -381,31 +369,25 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 4,
   },
   exerciseTarget: {
     fontSize: 14,
-    color: '#94a3b8',
   },
   removeButton: {
     fontSize: 20,
-    color: '#ef4444',
     padding: 8,
   },
   addExerciseButton: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: '#334155',
     borderStyle: 'dashed',
   },
   addExerciseText: {
-    color: '#6366f1',
     fontSize: 16,
     fontWeight: '600',
   },

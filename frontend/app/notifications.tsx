@@ -21,6 +21,7 @@ import {
 import NotificationCard from '../src/components/NotificationCard';
 import type Notification from '../src/db/models/Notification';
 import type { NotificationType } from '../src/db/models/Notification';
+import { useTheme } from '../src/hooks/useTheme';
 
 interface NotificationItem {
   id: string;
@@ -37,6 +38,7 @@ interface NotificationItem {
 
 export default function NotificationsScreen() {
   const { user } = useAuthStore();
+  const colors = useTheme();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -171,8 +173,8 @@ export default function NotificationsScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyIcon}>🔔</Text>
-      <Text style={styles.emptyTitle}>No notifications yet</Text>
-      <Text style={styles.emptyText}>
+      <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No notifications yet</Text>
+      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
         You will receive notifications when someone follows you, you hit a PR,
         or unlock achievements
       </Text>
@@ -181,8 +183,8 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -193,21 +195,21 @@ export default function NotificationsScreen() {
         options={{
           title: 'Notifications',
           headerStyle: {
-            backgroundColor: '#0f172a',
+            backgroundColor: colors.background,
           },
-          headerTintColor: '#fff',
+          headerTintColor: colors.textPrimary,
           headerRight: () =>
             unreadCount > 0 ? (
               <TouchableOpacity
                 onPress={handleMarkAllAsRead}
                 style={styles.markAllButton}
               >
-                <Text style={styles.markAllText}>Mark all read</Text>
+                <Text style={[styles.markAllText, { color: colors.primary }]}>Mark all read</Text>
               </TouchableOpacity>
             ) : null,
         }}
       />
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <FlatList
           data={notifications}
           renderItem={renderNotification}
@@ -220,8 +222,8 @@ export default function NotificationsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#6366f1"
-              colors={['#6366f1']}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           ListEmptyComponent={renderEmptyState}
@@ -234,13 +236,11 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   listContent: {
     padding: 16,
@@ -261,12 +261,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: '#94a3b8',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -275,7 +273,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   markAllText: {
-    color: '#6366f1',
     fontSize: 14,
     fontWeight: '600',
   },

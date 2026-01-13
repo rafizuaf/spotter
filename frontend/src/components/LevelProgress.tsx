@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import colors from '@/utils/colors';
 
 interface LevelProgressProps {
   level: number;
@@ -47,7 +48,7 @@ export default function LevelProgress({ level, totalXp, xpToNextLevel }: LevelPr
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.background,
   },
   xpInfo: {
     flex: 1,
@@ -77,31 +78,31 @@ const styles = StyleSheet.create({
   levelLabel: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   xpText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
   },
   progressBarContainer: {
     marginTop: 4,
   },
   progressBarBackground: {
     height: 8,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     borderRadius: 4,
   },
   progressText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 });

@@ -19,6 +19,7 @@ import { syncDatabase } from '../../../src/db/sync';
 import UserListItem from '../../../src/components/UserListItem';
 import type User from '../../../src/db/models/User';
 import type Follow from '../../../src/db/models/Follow';
+import { useTheme } from '../../../src/hooks/useTheme';
 
 interface FollowingUser {
   id: string;
@@ -31,6 +32,7 @@ interface FollowingUser {
 export default function FollowingScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();
   const { user: currentUser } = useAuthStore();
+  const colors = useTheme();
 
   const [following, setFollowing] = useState<FollowingUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,26 +138,26 @@ export default function FollowingScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>Not following anyone yet</Text>
+      <Text style={[styles.emptyText, { color: colors.textMuted }]}>Not following anyone yet</Text>
     </View>
   );
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
+          <Text style={[styles.backButtonText, { color: colors.textPrimary }]}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Following</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Following</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -172,8 +174,8 @@ export default function FollowingScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#6366f1"
-            colors={['#6366f1']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={renderEmpty}
@@ -185,13 +187,11 @@ export default function FollowingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
   },
   header: {
     flexDirection: 'row',
@@ -199,9 +199,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     paddingTop: 60,
-    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
   },
   backButton: {
     padding: 8,
@@ -209,13 +207,11 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 20,
-    color: '#fff',
     fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
   },
   headerSpacer: {
     width: 40,
@@ -234,6 +230,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#64748b',
   },
 });

@@ -9,6 +9,7 @@ import BadgeCard from '../../src/components/BadgeCard';
 import type UserLevel from '../../src/db/models/UserLevel';
 import type UserBadge from '../../src/db/models/UserBadge';
 import type Achievement from '../../src/db/models/Achievement';
+import { useTheme } from '../../src/hooks/useTheme';
 
 interface BadgeWithAchievement {
   id: string;
@@ -20,6 +21,7 @@ interface BadgeWithAchievement {
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
+  const colors = useTheme();
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
   const [badges, setBadges] = useState<BadgeWithAchievement[]>([]);
   const [prCount, setPrCount] = useState(0);
@@ -103,17 +105,17 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.avatarText, { color: colors.background }]}>
             {user?.user_metadata?.username?.[0]?.toUpperCase() || 'U'}
           </Text>
         </View>
-        <Text style={styles.username}>
+        <Text style={[styles.username, { color: colors.textPrimary }]}>
           @{user?.user_metadata?.username || 'User'}
         </Text>
-        <Text style={styles.email}>{user?.email}</Text>
+        <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email}</Text>
       </View>
 
       {userLevel && (
@@ -127,28 +129,28 @@ export default function ProfileScreen() {
       )}
 
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{userLevel?.level || 1}</Text>
-          <Text style={styles.statLabel}>Level</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{userLevel?.level || 1}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Level</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{userLevel?.totalXp.toLocaleString() || '0'}</Text>
-          <Text style={styles.statLabel}>Total XP</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{userLevel?.totalXp.toLocaleString() || '0'}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total XP</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{prCount}</Text>
-          <Text style={styles.statLabel}>PRs</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statValue, { color: colors.primary }]}>{prCount}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>PRs</Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Achievements</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Achievements</Text>
         {loading ? (
-          <Text style={styles.loadingText}>Loading badges...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading badges...</Text>
         ) : badges.length === 0 ? (
-          <View style={styles.emptyBadges}>
-            <Text style={styles.emptyText}>No badges earned yet</Text>
-            <Text style={styles.emptySubtext}>
+          <View style={[styles.emptyBadges, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No badges earned yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
               Complete workouts to unlock achievements
             </Text>
           </View>
@@ -168,37 +170,37 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Settings</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Settings</Text>
 
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>Edit Profile</Text>
-          <Text style={styles.settingArrow}>→</Text>
+        <TouchableOpacity style={[styles.settingItem, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.settingText, { color: colors.textPrimary }]}>Edit Profile</Text>
+          <Text style={[styles.settingArrow, { color: colors.textMuted }]}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>Units & Preferences</Text>
-          <Text style={styles.settingArrow}>→</Text>
+        <TouchableOpacity style={[styles.settingItem, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.settingText, { color: colors.textPrimary }]}>Units & Preferences</Text>
+          <Text style={[styles.settingArrow, { color: colors.textMuted }]}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>Notifications</Text>
-          <Text style={styles.settingArrow}>→</Text>
+        <TouchableOpacity style={[styles.settingItem, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.settingText, { color: colors.textPrimary }]}>Notifications</Text>
+          <Text style={[styles.settingArrow, { color: colors.textMuted }]}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>Privacy</Text>
-          <Text style={styles.settingArrow}>→</Text>
+        <TouchableOpacity style={[styles.settingItem, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.settingText, { color: colors.textPrimary }]}>Privacy</Text>
+          <Text style={[styles.settingArrow, { color: colors.textMuted }]}>→</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Sign Out</Text>
+        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.error }]} onPress={handleLogout}>
+          <Text style={[styles.logoutText, { color: colors.textPrimary }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Spotter v1.0.0</Text>
+        <Text style={[styles.footerText, { color: colors.textMuted }]}>Spotter v1.0.0</Text>
       </View>
     </ScrollView>
   );
@@ -207,7 +209,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   header: {
     alignItems: 'center',
@@ -218,7 +219,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -226,16 +226,13 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 40,
     fontWeight: 'bold',
-    color: '#fff',
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
   },
   email: {
     fontSize: 16,
-    color: '#94a3b8',
     marginTop: 4,
   },
   levelSection: {
@@ -249,7 +246,6 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -257,11 +253,9 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statLabel: {
     fontSize: 14,
-    color: '#94a3b8',
     marginTop: 4,
   },
   section: {
@@ -271,33 +265,27 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 16,
   },
   loadingText: {
     fontSize: 16,
-    color: '#94a3b8',
     textAlign: 'center',
     padding: 24,
   },
   emptyBadges: {
-    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 16,
-    color: '#94a3b8',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#64748b',
     marginTop: 4,
     textAlign: 'center',
   },
   settingItem: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -307,20 +295,16 @@ const styles = StyleSheet.create({
   settingText: {
     flex: 1,
     fontSize: 16,
-    color: '#fff',
   },
   settingArrow: {
     fontSize: 18,
-    color: '#64748b',
   },
   logoutButton: {
-    backgroundColor: '#7f1d1d',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   logoutText: {
-    color: '#fecaca',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -330,6 +314,5 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#64748b',
   },
 });
