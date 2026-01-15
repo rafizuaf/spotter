@@ -6,6 +6,8 @@ import { database } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import LevelProgress from '../../src/components/LevelProgress';
 import BadgeCard from '../../src/components/BadgeCard';
+import { ViralShareModal } from '../../src/components/viral';
+import type { ViralShareType } from '../../src/components/viral';
 import type UserLevel from '../../src/db/models/UserLevel';
 import type UserBadge from '../../src/db/models/UserBadge';
 import type Achievement from '../../src/db/models/Achievement';
@@ -26,6 +28,10 @@ export default function ProfileScreen() {
   const [badges, setBadges] = useState<BadgeWithAchievement[]>([]);
   const [prCount, setPrCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // Viral sharing state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareType, setShareType] = useState<ViralShareType>('ARCHETYPE');
 
   useEffect(() => {
     if (!user) return;
@@ -151,6 +157,25 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Gym Archetype Button */}
+      <TouchableOpacity
+        style={[styles.archetypeButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        onPress={() => {
+          setShareType('ARCHETYPE');
+          setShowShareModal(true);
+        }}
+        accessible={true}
+        accessibilityLabel="View your gym archetype"
+        accessibilityRole="button"
+      >
+        <Text style={[styles.archetypeButtonText, { color: colors.primary }]}>
+          Discover Your Gym Archetype
+        </Text>
+        <Text style={[styles.archetypeButtonSubtext, { color: colors.textSecondary }]}>
+          What kind of lifter are you?
+        </Text>
+      </TouchableOpacity>
+
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Achievements</Text>
         {loading ? (
@@ -210,6 +235,13 @@ export default function ProfileScreen() {
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: colors.textMuted }]}>Spotter v1.0.0</Text>
       </View>
+
+      {/* Viral Share Modal */}
+      <ViralShareModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        shareType={shareType}
+      />
     </ScrollView>
   );
 }
@@ -315,6 +347,22 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  archetypeButton: {
+    marginHorizontal: 24,
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  archetypeButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  archetypeButtonSubtext: {
+    fontSize: 14,
+    marginTop: 4,
   },
   footer: {
     padding: 24,

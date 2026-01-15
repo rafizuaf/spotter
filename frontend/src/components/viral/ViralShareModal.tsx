@@ -29,10 +29,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { supabase } from '../../services/supabase';
 import NutritionLabel from './NutritionLabel';
+import ReceiptCard from './ReceiptCard';
+import AstrologyCard from './AstrologyCard';
+import WantedPoster from './WantedPoster';
+import Tombstone from './Tombstone';
+import RansomNote from './RansomNote';
+import FraudAlert from './FraudAlert';
 import type {
   ViralShareModalProps,
   NutritionLabelStats,
   WorkoutViralStatsApiResponse,
+  MonthlyArchetypeStats,
+  ReceiptItem,
+  PainLevel,
+  ReEngagementApiResponse,
 } from './types';
 
 /**
@@ -61,69 +71,140 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
 
+  // Additional state for different card types
+  const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
+  const [archetype, setArchetype] = useState<MonthlyArchetypeStats | null>(null);
+  const [reEngagementData, setReEngagementData] = useState<{
+    cardType: string | null;
+    muscleGroup?: string;
+    daysMissing: number;
+    lastWorkoutDate?: Date;
+  } | null>(null);
+
   /**
-   * Fetch viral stats from Edge Function
+   * Get pain level from percentage
+   */
+  const getPainLevel = (painPercent: number): PainLevel => {
+    if (painPercent < 25) return 'LOW';
+    if (painPercent < 50) return 'MEDIUM';
+    if (painPercent < 75) return 'HIGH';
+    return 'CRITICAL';
+  };
+
+  /**
+   * Fetch viral stats from Edge Function based on shareType
    */
   const fetchStats = useCallback(async () => {
-    if (!workoutId) {
-      setError('No workout selected');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error: invokeError } = await supabase.functions.invoke(
-        'generate-viral-stats',
-        {
-          body: {
-            type: 'WORKOUT',
-            workout_id: workoutId,
-          },
+      // Determine which API call to make based on shareType
+      if (shareType === 'ARCHETYPE') {
+        // Monthly archetype
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'generate-viral-stats',
+          { body: { type: 'MONTHLY' } }
+        );
+
+        if (invokeError) {
+          throw new Error(invokeError.message || 'Failed to fetch archetype');
         }
-      );
 
-      if (invokeError) {
-        throw new Error(invokeError.message || 'Failed to fetch stats');
+        const response = data as {
+          type: 'MONTHLY';
+          archetype: MonthlyArchetypeStats;
+        };
+        setArchetype(response.archetype);
+      } else if (['WANTED', 'RANSOM', 'FRAUD_ALERT'].includes(shareType)) {
+        // Re-engagement cards
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'generate-viral-stats',
+          { body: { type: 'RE_ENGAGEMENT' } }
+        );
+
+        if (invokeError) {
+          throw new Error(invokeError.message || 'Failed to fetch re-engagement data');
+        }
+
+        const response = data as ReEngagementApiResponse;
+        setReEngagementData({
+          cardType: response.card_type,
+          muscleGroup: response.muscle_group ?? undefined,
+          daysMissing: response.days_missing,
+          lastWorkoutDate: response.last_workout_date
+            ? new Date(response.last_workout_date)
+            : undefined,
+        });
+      } else {
+        // NUTRITION_LABEL, RECEIPT, TOMBSTONE - need workoutId
+        if (!workoutId) {
+          setError('No workout selected');
+          setLoading(false);
+          return;
+        }
+
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'generate-viral-stats',
+          {
+            body: {
+              type: 'WORKOUT',
+              workout_id: workoutId,
+            },
+          }
+        );
+
+        if (invokeError) {
+          throw new Error(invokeError.message || 'Failed to fetch stats');
+        }
+
+        const response = data as WorkoutViralStatsApiResponse;
+
+        // Map snake_case response to camelCase
+        const mappedStats: NutritionLabelStats = {
+          totalVolumeKg: response.nutrition_label.total_volume_kg,
+          setsCompleted: response.nutrition_label.sets_completed,
+          durationMinutes: response.nutrition_label.duration_minutes,
+          exercisesCount: response.nutrition_label.exercises_count,
+          muscleGroups: response.nutrition_label.muscle_groups,
+          prsHit: response.nutrition_label.prs_hit,
+          xpEarned: response.nutrition_label.xp_earned,
+          painPercent: response.nutrition_label.pain_percent,
+          sweatLiters: response.nutrition_label.sweat_liters,
+          regretPercent: response.nutrition_label.regret_percent,
+        };
+
+        setStats(mappedStats);
+        setWorkoutName(response.workout_name);
+        setWorkoutDate(new Date(response.workout_date));
+
+        // For Receipt card, create line items from stats
+        if (shareType === 'RECEIPT' && mappedStats) {
+          // Create dummy receipt items based on muscle groups and volume
+          const items: ReceiptItem[] = mappedStats.muscleGroups.map((mg, i) => ({
+            name: mg,
+            qty: Math.ceil(mappedStats.setsCompleted / mappedStats.muscleGroups.length),
+            total: Math.round(mappedStats.totalVolumeKg / mappedStats.muscleGroups.length),
+          }));
+          setReceiptItems(items);
+        }
       }
-
-      const response = data as WorkoutViralStatsApiResponse;
-
-      // Map snake_case response to camelCase
-      const mappedStats: NutritionLabelStats = {
-        totalVolumeKg: response.nutrition_label.total_volume_kg,
-        setsCompleted: response.nutrition_label.sets_completed,
-        durationMinutes: response.nutrition_label.duration_minutes,
-        exercisesCount: response.nutrition_label.exercises_count,
-        muscleGroups: response.nutrition_label.muscle_groups,
-        prsHit: response.nutrition_label.prs_hit,
-        xpEarned: response.nutrition_label.xp_earned,
-        painPercent: response.nutrition_label.pain_percent,
-        sweatLiters: response.nutrition_label.sweat_liters,
-        regretPercent: response.nutrition_label.regret_percent,
-      };
-
-      setStats(mappedStats);
-      setWorkoutName(response.workout_name);
-      setWorkoutDate(new Date(response.workout_date));
     } catch (err) {
       console.error('Error fetching viral stats:', err);
       setError(
-        err instanceof Error ? err.message : 'Failed to load workout stats'
+        err instanceof Error ? err.message : 'Failed to load stats'
       );
     } finally {
       setLoading(false);
     }
-  }, [workoutId]);
+  }, [workoutId, shareType]);
 
   // Fetch stats when modal opens
   useEffect(() => {
-    if (visible && workoutId) {
+    if (visible) {
       fetchStats();
     }
-  }, [visible, workoutId, fetchStats]);
+  }, [visible, fetchStats]);
 
   /**
    * Capture the viral card view as an image
@@ -256,13 +337,10 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
       );
     }
 
-    if (!stats) {
-      return null;
-    }
-
     // Render based on shareType
     switch (shareType) {
       case 'NUTRITION_LABEL':
+        if (!stats) return null;
         return (
           <NutritionLabel
             stats={stats}
@@ -271,21 +349,90 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
           />
         );
 
-      // Placeholder for other card types (to be implemented)
       case 'RECEIPT':
-      case 'ARCHETYPE':
-      case 'WANTED':
-      case 'TOMBSTONE':
-      case 'RANSOM':
+        if (!stats) return null;
         return (
-          <View style={styles.placeholderContainer}>
-            <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-              {shareType} card coming soon
-            </Text>
-          </View>
+          <ReceiptCard
+            items={receiptItems}
+            subtotal={stats.totalVolumeKg}
+            date={workoutDate}
+            painLevel={getPainLevel(stats.painPercent)}
+            durationMinutes={stats.durationMinutes}
+            prsHit={stats.prsHit}
+          />
         );
 
+      case 'ARCHETYPE':
+        if (!archetype) return null;
+        return <AstrologyCard archetype={archetype} />;
+
+      case 'WANTED':
+        if (!reEngagementData || !reEngagementData.muscleGroup) {
+          return (
+            <View style={styles.placeholderContainer}>
+              <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
+                All muscles accounted for. Suspicious. We're watching.
+              </Text>
+            </View>
+          );
+        }
+        return (
+          <WantedPoster
+            muscleGroup={reEngagementData.muscleGroup}
+            lastSeen={reEngagementData.lastWorkoutDate || new Date()}
+            daysMissing={reEngagementData.daysMissing}
+          />
+        );
+
+      case 'TOMBSTONE':
+        // Tombstone requires specific failed PR data - show placeholder if not available
+        if (!stats) {
+          return (
+            <View style={styles.placeholderContainer}>
+              <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
+                No failed PRs on record. Your ego lives another day.
+              </Text>
+            </View>
+          );
+        }
+        // For demo purposes, show a sample tombstone
+        return (
+          <Tombstone
+            exerciseName={workoutName}
+            attemptedWeight={stats.totalVolumeKg > 0 ? Math.round(stats.totalVolumeKg / stats.setsCompleted) : 100}
+            failedAt={workoutDate}
+            reps={0}
+          />
+        );
+
+      case 'RANSOM':
+        if (!reEngagementData) {
+          return (
+            <View style={styles.placeholderContainer}>
+              <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
+                Your gains are safe... for now.
+              </Text>
+            </View>
+          );
+        }
+        return (
+          <RansomNote
+            daysSinceWorkout={reEngagementData.daysMissing}
+            gainsAtRisk={reEngagementData.muscleGroup ? [reEngagementData.muscleGroup] : ['Arms', 'Chest', 'Back']}
+          />
+        );
+
+      // Handle FRAUD_ALERT as a special case (not in ViralShareType but supported)
       default:
+        // Check if it's a fraud alert based on re-engagement data
+        if (reEngagementData?.cardType === 'FRAUD_ALERT' && reEngagementData.muscleGroup) {
+          return (
+            <FraudAlert
+              muscleGroup={reEngagementData.muscleGroup}
+              daysSinceVolume={reEngagementData.daysMissing}
+            />
+          );
+        }
         return null;
     }
   };
@@ -332,7 +479,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
         </View>
 
         {/* Action Buttons */}
-        {!loading && !error && stats && (
+        {!loading && !error && (stats || archetype || reEngagementData) && (
           <View style={styles.actionsContainer}>
             {/* Save to Photos */}
             <TouchableOpacity

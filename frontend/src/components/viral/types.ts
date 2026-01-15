@@ -153,3 +153,130 @@ export interface ViralShareModalProps {
   /** Type of viral card to display */
   shareType: ViralShareType;
 }
+
+/**
+ * Receipt line item interface
+ */
+export interface ReceiptItem {
+  /** Exercise name */
+  name: string;
+  /** Number of sets performed */
+  qty: number;
+  /** Total volume for this exercise (weight × reps) */
+  total: number;
+}
+
+/**
+ * Pain level indicator for ReceiptCard
+ */
+export type PainLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+/**
+ * Props for ReceiptCard component
+ */
+export interface ReceiptCardProps {
+  /** Line items (exercises with sets and volume) */
+  items: ReceiptItem[];
+  /** Total volume subtotal */
+  subtotal: number;
+  /** Workout date */
+  date: Date;
+  /** Optional gym name */
+  gymName?: string;
+  /** Pain level indicator */
+  painLevel: PainLevel;
+  /** Workout duration in minutes */
+  durationMinutes: number;
+  /** Number of PRs hit */
+  prsHit: number;
+}
+
+/**
+ * Props for AstrologyCard component
+ */
+export interface AstrologyCardProps {
+  /** Archetype data from generate-viral-stats */
+  archetype: MonthlyArchetypeStats;
+}
+
+/**
+ * Re-engagement card types
+ */
+export type ReEngagementCardType = 'FRAUD_ALERT' | 'RANSOM_NOTE' | 'WANTED_POSTER' | 'TOMBSTONE';
+
+/**
+ * Re-engagement data from generate-viral-stats
+ */
+export interface ReEngagementData {
+  /** Type of re-engagement card to show */
+  cardType: ReEngagementCardType;
+  /** For WANTED_POSTER and FRAUD_ALERT: the neglected muscle group */
+  muscleGroup?: string;
+  /** Days since last activity (workout or muscle group volume) */
+  daysMissing: number;
+  /** For TOMBSTONE: the exercise name */
+  exerciseName?: string;
+  /** For TOMBSTONE: the attempted weight */
+  attemptedWeight?: number;
+}
+
+/**
+ * Props for WantedPoster component
+ */
+export interface WantedPosterProps {
+  /** The neglected muscle group */
+  muscleGroup: string;
+  /** Last seen date */
+  lastSeen: Date;
+  /** Days since last trained */
+  daysMissing: number;
+  /** Optional reward text */
+  reward?: string;
+}
+
+/**
+ * Props for Tombstone component
+ */
+export interface TombstoneProps {
+  /** Exercise name where the failure occurred */
+  exerciseName: string;
+  /** Weight that crushed your ego */
+  attemptedWeight: number;
+  /** Date of the failed PR */
+  failedAt: Date;
+  /** Optional: reps attempted (usually 0) */
+  reps?: number;
+}
+
+/**
+ * Props for RansomNote component
+ */
+export interface RansomNoteProps {
+  /** Days since last workout */
+  daysSinceWorkout: number;
+  /** List of gains at risk */
+  gainsAtRisk: string[];
+}
+
+/**
+ * Props for FraudAlert component
+ */
+export interface FraudAlertProps {
+  /** The neglected muscle group (usually Legs) */
+  muscleGroup: string;
+  /** Days since any volume on this muscle */
+  daysSinceVolume: number;
+}
+
+/**
+ * API response for RE_ENGAGEMENT type
+ */
+export interface ReEngagementApiResponse {
+  type: 'RE_ENGAGEMENT';
+  card_type: ReEngagementCardType;
+  muscle_group?: string;
+  days_missing: number;
+  exercise_name?: string;
+  attempted_weight?: number;
+  last_workout_date?: string;
+}

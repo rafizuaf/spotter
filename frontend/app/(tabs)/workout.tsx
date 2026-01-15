@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useWorkoutStore } from '../../src/stores/workoutStore';
 import ExercisePicker from '../../src/components/ExercisePicker';
+import { ViralShareModal } from '../../src/components/viral';
+import type { ViralShareType } from '../../src/components/viral';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores/authStore';
 import { userSettingsCollection } from '../../src/db';
@@ -42,6 +44,11 @@ export default function WorkoutScreen() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [workoutMode, setWorkoutMode] = useState<'SIMPLE' | 'FULL'>('SIMPLE');
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
+  
+  // Viral sharing state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [completedWorkoutId, setCompletedWorkoutId] = useState<string | null>(null);
+  const [shareType, setShareType] = useState<ViralShareType>('NUTRITION_LABEL');
   
   // Refs for auto-advance cursor
   const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
@@ -124,29 +131,45 @@ export default function WorkoutScreen() {
 
   const handleFinishWorkout = async () => {
     const result = await finishWorkout();
-    if (result.success) {
+    if (result.success && result.workoutId) {
+      // Store the completed workout ID for sharing
+      setCompletedWorkoutId(result.workoutId);
+      
       // Build success message with gamification results
       const { gamification } = result;
-      let message = 'Workout saved successfully!\n\n';
+      let message = 'Another one in the books.\n\n';
 
       if (gamification) {
         if (gamification.xpAwarded > 0) {
-          message += `+${gamification.xpAwarded} XP earned\n`;
+          message += `+${gamification.xpAwarded} XP banked\n`;
         }
         if (gamification.levelUp && gamification.newLevel > 0) {
-          message += `🎉 Level Up! You're now level ${gamification.newLevel}\n`;
+          message += `Level ${gamification.newLevel} unlocked\n`;
         }
         if (gamification.prCount > 0) {
-          message += `🏆 ${gamification.prCount} new personal record${gamification.prCount > 1 ? 's' : ''}!\n`;
+          message += `${gamification.prCount} PR${gamification.prCount > 1 ? 's' : ''} crushed\n`;
         }
         if (gamification.badgesUnlocked > 0) {
-          message += `🎖️ ${gamification.badgesUnlocked} badge${gamification.badgesUnlocked > 1 ? 's' : ''} unlocked!\n`;
+          message += `${gamification.badgesUnlocked} badge${gamification.badgesUnlocked > 1 ? 's' : ''} earned\n`;
         }
       }
 
-      Alert.alert('Workout Complete!', message.trim());
+      // Show alert with share option
+      Alert.alert('Gains Secured', message.trim(), [
+        {
+          text: 'Share Receipt',
+          onPress: () => {
+            setShareType('NUTRITION_LABEL');
+            setShowShareModal(true);
+          },
+        },
+        {
+          text: 'Flex Later',
+          style: 'cancel',
+        },
+      ]);
     } else {
-      Alert.alert('Error', result.error || 'Failed to save workout');
+      Alert.alert('Failed Rep', result.error || 'Workout not saved. Try again.');
     }
   };
 
@@ -438,6 +461,17 @@ export default function WorkoutScreen() {
         visible={showExercisePicker}
         onClose={() => setShowExercisePicker(false)}
         onSelectExercise={handleSelectExercise}
+      />
+
+      {/* Viral Share Modal */}
+      <ViralShareModal
+        visible={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setCompletedWorkoutId(null);
+        }}
+        workoutId={completedWorkoutId ?? undefined}
+        shareType={shareType}
       />
     </View>
   );
