@@ -107,32 +107,39 @@ export default function FeedScreen() {
         )
         .fetch();
 
-      // 5. Load user data for each post
-      const postsWithUsers = await Promise.all(
-        postRecords.map(async (post: SocialPost) => {
-          try {
-            const postUser = await usersCollection
-              .query(Q.where('server_id', post.userId))
-              .fetch();
+      // 5. FIX: Batch load all users at once using Q.oneOf() instead of N+1 queries
+      // Extract unique user IDs from posts
+      const userIds = Array.from(new Set(postRecords.map((p: SocialPost) => p.userId)));
+      
+      // Single batch query for all users
+      const users = await usersCollection
+        .query(Q.where('server_id', Q.oneOf(userIds)))
+        .fetch();
+      
+      // Create Map for O(1) lookup
+      const userMap = new Map<string, User>();
+      users.forEach((user) => {
+        const typedUser = user as User;
+        if (typedUser.serverId) {
+          userMap.set(typedUser.serverId, typedUser);
+        }
+      });
 
-            const userData = postUser[0] as User | undefined;
+      // Map posts to users using the pre-loaded Map
+      const postsWithUsers = postRecords.map((post: SocialPost) => {
+        const userData = userMap.get(post.userId);
 
-            return {
-              id: post.id,
-              userId: post.userId,
-              username: userData?.username || 'Unknown User',
-              avatarUrl: userData?.avatarUrl,
-              headline: post.generatedHeadline,
-              createdAt: post.createdAt,
-              workoutId: post.workoutId,
-              achievementCode: post.achievementCode,
-            };
-          } catch (error) {
-            console.error('Error loading user for post:', error);
-            return null;
-          }
-        })
-      );
+        return {
+          id: post.id,
+          userId: post.userId,
+          username: userData?.username || 'Unknown User',
+          avatarUrl: userData?.avatarUrl,
+          headline: post.generatedHeadline,
+          createdAt: post.createdAt,
+          workoutId: post.workoutId,
+          achievementCode: post.achievementCode,
+        };
+      });
 
       // Filter out any null posts (from errors)
       const validPosts = postsWithUsers.filter((p) => p !== null) as PostWithUser[];

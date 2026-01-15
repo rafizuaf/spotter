@@ -92,6 +92,7 @@ export default function RegisterScreen() {
               placeholderTextColor={colors.textMuted}
               value={username}
               onChangeText={setUsername}
+              maxLength={30}
               autoCapitalize="none"
               autoComplete="username"
             />

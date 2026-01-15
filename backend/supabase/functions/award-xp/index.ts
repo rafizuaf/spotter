@@ -3,8 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -75,16 +81,77 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get today's start timestamp for daily cap
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Get workout ID from sets (needed for timezone lookup)
+    const { data: sets } = await supabaseAdmin
+      .from("workout_sets")
+      .select("id, workout_id")
+      .in("id", setIds);
 
-    // Get today's XP total
+    if (!sets || sets.length === 0) {
+      return new Response(JSON.stringify({ error: "No valid sets found" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const typedSets = sets as WorkoutSet[];
+    const workoutId = typedSets[0].workout_id;
+
+    // FIX: Get user's timezone from workout or user_settings for accurate daily cap calculation
+    // This ensures daily cap resets at midnight in user's local timezone, not server timezone
+    let userTimezone: string | null = null;
+    
+    // Try to get timezone from the workout first (most accurate, reflects when workout happened)
+    if (workoutId) {
+      const { data: workout } = await supabaseAdmin
+        .from("workouts")
+        .select("local_timezone")
+        .eq("id", workoutId)
+        .single();
+      
+      if (workout && (workout as { local_timezone?: string | null }).local_timezone) {
+        userTimezone = (workout as { local_timezone: string }).local_timezone;
+      }
+    }
+    
+    // Fall back to user_settings if workout doesn't have timezone
+    if (!userTimezone) {
+      const { data: userSettings } = await supabaseAdmin
+        .from("user_settings")
+        .select("timezone_preference")
+        .eq("user_id", userId)
+        .single();
+      
+      if (userSettings && (userSettings as { timezone_preference?: string | null }).timezone_preference) {
+        userTimezone = (userSettings as { timezone_preference: string }).timezone_preference;
+      }
+    }
+
+    // Calculate today's start in user's timezone, then convert to UTC for database query
+    const now = new Date();
+    let todayStartUTC: Date;
+    
+    if (userTimezone) {
+      // Get current date/time string in user's timezone
+      const nowInUserTz = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
+      const todayInUserTz = new Date(nowInUserTz);
+      todayInUserTz.setHours(0, 0, 0, 0);
+      
+      // Calculate UTC offset and adjust
+      const offsetMs = now.getTime() - nowInUserTz.getTime();
+      todayStartUTC = new Date(todayInUserTz.getTime() + offsetMs);
+    } else {
+      // Default to UTC if no timezone available
+      todayStartUTC = new Date(now);
+      todayStartUTC.setUTCHours(0, 0, 0, 0);
+    }
+
+    // Get today's XP total (using user's timezone-adjusted start time)
     const { data: todayXpData } = await supabaseAdmin
       .from("user_xp_logs")
       .select("xp_amount")
       .eq("user_id", userId)
-      .gte("created_at", todayStart.toISOString());
+      .gte("created_at", todayStartUTC.toISOString());
 
     const todayXpTotal =
       (todayXpData as XpLog[] | null)?.reduce(
@@ -100,22 +167,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     let xpAwarded = 0;
-
-    // Get workout ID from the sets
-    const { data: sets } = await supabaseAdmin
-      .from("workout_sets")
-      .select("id, workout_id")
-      .in("id", setIds);
-
-    if (!sets || sets.length === 0) {
-      return new Response(JSON.stringify({ error: "No valid sets found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const typedSets = sets as WorkoutSet[];
-    const workoutId = typedSets[0].workout_id;
 
     // Get existing XP logs for these sets (idempotency check)
     const { data: existingLogs } = await supabaseAdmin

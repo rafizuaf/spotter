@@ -165,6 +165,7 @@ export default function ProfileSettingsScreen() {
               value={websiteLink}
               onChangeText={setWebsiteLink}
               placeholder="https://yourwebsite.com"
+              maxLength={200}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}

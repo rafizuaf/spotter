@@ -3,8 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -88,6 +94,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({
           error: "Missing required fields: recipientId, type, title",
         }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // SECURITY: Validate input length to prevent abuse
+    if (title.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "Title too long (max 200 characters)" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (body && body.length > 500) {
+      return new Response(
+        JSON.stringify({ error: "Body too long (max 500 characters)" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -212,8 +239,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${Deno.env.get(
-                "SUPABASE_SERVICE_ROLE_KEY"
-              )}`,
+                "INTERNAL_SERVICE_KEY"
+              ) || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             },
             body: JSON.stringify({
               userId: recipientId,

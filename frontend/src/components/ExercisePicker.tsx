@@ -280,6 +280,7 @@ export default function ExercisePicker({
                 placeholderTextColor={colors.textMuted}
                 value={customExerciseName}
                 onChangeText={setCustomExerciseName}
+                maxLength={100}
               />
 
               <Text style={styles.formLabel}>Muscle Group</Text>

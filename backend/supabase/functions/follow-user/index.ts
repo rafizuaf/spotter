@@ -3,8 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };

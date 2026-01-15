@@ -3,8 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -46,8 +52,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // This function can be called internally with service key
-    // or by an authenticated user for their own devices
+    // SECURITY: This function must only be called internally with service key
+    // Never allow external callers to send notifications to arbitrary users
+    const authHeader = req.headers.get("Authorization");
+    const internalServiceKey = Deno.env.get("INTERNAL_SERVICE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!authHeader || authHeader !== `Bearer ${internalServiceKey}`) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Internal service key required" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // This function can only be called internally with service key
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SECRET_KEY") ?? ""

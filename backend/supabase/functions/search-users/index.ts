@@ -3,8 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -72,6 +78,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // SECURITY: Cap limit to prevent abuse
+    const cappedLimit = Math.min(limit, 50);
+
     // 3. Use admin client for business logic
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -104,7 +113,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .eq("account_status", "ACTIVE")
       .is("deleted_at", null)
       .neq("id", user.id) // Exclude current user
-      .limit(limit);
+      .limit(cappedLimit);
 
     if (searchError) {
       throw searchError;

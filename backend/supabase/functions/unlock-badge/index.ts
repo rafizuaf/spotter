@@ -3,8 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -121,98 +127,103 @@ Deno.serve(async (req: Request): Promise<Response> => {
       (existingBadges as UserBadge[])?.map((b) => b.achievement_code) || []
     );
 
+    // FIX: Pre-aggregate all user stats in single queries instead of N+1 pattern
+    // This eliminates 30+ individual queries and replaces with 3-4 batch queries
+    const [workoutCountResult, prCountResult, userLevelResult, muscleGroupStatsResult] = await Promise.all([
+      // Total workout count
+      supabaseAdmin
+        .from("workouts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("deleted_at", null),
+      // PR count
+      supabaseAdmin
+        .from("workout_sets")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_pr", true)
+        .eq("deleted_at", null),
+      // User level
+      supabaseAdmin
+        .from("user_levels")
+        .select("level")
+        .eq("user_id", userId)
+        .single(),
+      // Muscle group stats (get all sets with muscle groups)
+      supabaseAdmin
+        .from("workout_sets")
+        .select("exercise_id, exercises!inner(muscle_group)")
+        .eq("user_id", userId)
+        .eq("deleted_at", null),
+    ]);
+
+    const workoutCount = workoutCountResult.count ?? 0;
+    const prCount = prCountResult.count ?? 0;
+    const userLevel = (userLevelResult.data as { level: number } | null)?.level ?? 0;
+    
+    // Group muscle group sets by muscle_group
+    const muscleGroupCounts = new Map<string, number>();
+    if (muscleGroupStatsResult.data) {
+      (muscleGroupStatsResult.data as Array<{ exercises: { muscle_group: string } }>).forEach((set) => {
+        const muscleGroup = set.exercises.muscle_group;
+        muscleGroupCounts.set(muscleGroup, (muscleGroupCounts.get(muscleGroup) ?? 0) + 1);
+      });
+    }
+
     const newlyUnlocked: UnlockedBadge[] = [];
 
-    // Check each achievement
+    // Check each achievement using pre-aggregated stats
     for (const achievement of achievements as Achievement[]) {
       // Skip if already earned
       if (existingBadgeCodes.has(achievement.code)) {
         continue;
       }
 
-      // Evaluate achievement condition based on code
+      // Evaluate achievement condition using pre-aggregated stats
       let conditionMet = false;
 
       // First workout badge
       if (achievement.code === "FIRST_WORKOUT") {
-        const { count } = await supabaseAdmin
-          .from("workouts")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("deleted_at", null);
-
-        conditionMet = (count ?? 0) >= 1;
+        conditionMet = workoutCount >= 1;
       }
 
       // Workout count badges (10, 50, 100, 500, 1000)
       else if (achievement.code.startsWith("WORKOUT_")) {
         const threshold = achievement.threshold_value ?? 0;
-        const { count } = await supabaseAdmin
-          .from("workouts")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("deleted_at", null);
-
-        conditionMet = (count ?? 0) >= threshold;
+        conditionMet = workoutCount >= threshold;
       }
 
       // First PR badge
       else if (achievement.code === "FIRST_PR") {
-        const { count } = await supabaseAdmin
-          .from("workout_sets")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("is_pr", true)
-          .eq("deleted_at", null);
-
-        conditionMet = (count ?? 0) >= 1;
+        conditionMet = prCount >= 1;
       }
 
       // PR count badges
       else if (achievement.code.startsWith("PR_COUNT_")) {
         const threshold = achievement.threshold_value ?? 0;
-        const { count } = await supabaseAdmin
-          .from("workout_sets")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("is_pr", true)
-          .eq("deleted_at", null);
-
-        conditionMet = (count ?? 0) >= threshold;
+        conditionMet = prCount >= threshold;
       }
 
       // Level badges
       else if (achievement.code.startsWith("LEVEL_")) {
         const threshold = achievement.threshold_value ?? 0;
-        const { data: userLevel } = await supabaseAdmin
-          .from("user_levels")
-          .select("level")
-          .eq("user_id", userId)
-          .single();
-
-        conditionMet = (userLevel?.level ?? 0) >= threshold;
+        conditionMet = userLevel >= threshold;
       }
 
       // Muscle group specific badges (e.g., "CHEST_CHAMPION")
       else if (achievement.relevant_muscle_group) {
-        // Check if user has X workouts with this muscle group
         const threshold = achievement.threshold_value ?? 10;
-
-        const { data: muscleGroupSets } = await supabaseAdmin
-          .from("workout_sets")
-          .select("exercise_id, exercises!inner(muscle_group)")
-          .eq("user_id", userId)
-          .eq("exercises.muscle_group", achievement.relevant_muscle_group)
-          .eq("deleted_at", null);
-
-        conditionMet = (muscleGroupSets?.length ?? 0) >= threshold;
+        const muscleGroupCount = muscleGroupCounts.get(achievement.relevant_muscle_group) ?? 0;
+        conditionMet = muscleGroupCount >= threshold;
       }
 
       // If condition met, create badge
+      // FIX: Use ON CONFLICT DO NOTHING to prevent race condition duplicates
+      // This ensures idempotency even if multiple requests arrive simultaneously
       if (conditionMet) {
         const now = new Date().toISOString();
 
-        const { error: insertError } = await supabaseAdmin
+        const { data: insertedBadge, error: insertError } = await supabaseAdmin
           .from("user_badges")
           .insert({
             user_id: userId,
@@ -220,17 +231,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
             earned_at: now,
             is_rusty: false,
             last_maintained_at: now,
-          });
+          })
+          .select()
+          .single();
 
-        if (insertError) {
-          console.error("Error creating badge:", insertError);
-        } else {
+        // FIX: Handle race condition - unique constraint violation is expected if badge already exists
+        // PostgreSQL error code 23505 = unique_violation
+        if (!insertError) {
+          // Badge successfully inserted
           newlyUnlocked.push({
             code: achievement.code,
             title: achievement.title,
             description: achievement.description,
             earnedAt: now,
           });
+        } else if (insertError.code === "23505") {
+          // Race condition: badge already exists (another request inserted it)
+          // This is expected behavior, silently ignore
+        } else {
+          // Unexpected error, log it
+          console.error("Error creating badge:", insertError);
         }
       }
     }

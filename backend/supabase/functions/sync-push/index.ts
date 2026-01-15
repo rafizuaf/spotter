@@ -7,8 +7,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 
+// CORS: Restrict to specific origin for security
+const getAllowedOrigin = (): string => {
+  const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
+  return allowedOrigin;
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -92,16 +98,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // Process created records
-      for (const record of tableChanges.created) {
-        const serverRecord = prepareRecord(record, user.id, table);
+      // FIX: Batch upsert instead of loop (100 records = 1 query instead of 100)
+      if (tableChanges.created.length > 0) {
+        const serverRecords = tableChanges.created.map((record) =>
+          prepareRecord(record, user.id, table)
+        );
 
         const { error } = await supabaseAdmin
           .from(table)
-          .upsert(serverRecord, { onConflict: "id" });
+          .upsert(serverRecords, { onConflict: "id" });
 
         if (error) {
-          console.error(`Error inserting into ${table}:`, error);
+          console.error(`Error batch inserting into ${table}:`, error);
         }
       }
 
