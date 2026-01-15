@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 2, // Updated for weekly activity system
+  version: 3, // Updated for First 30 Days program
   tables: [
     // ============================================
     // Users & Settings
@@ -357,6 +357,78 @@ export const schema = appSchema({
         { name: 'is_active', type: 'boolean' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    // ============================================
+    // First 30 Days Program (v3)
+    // ============================================
+    tableSchema({
+      name: 'beginner_programs',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'code', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'duration_weeks', type: 'number' },
+        { name: 'workouts_per_week', type: 'number' },
+        { name: 'target_persona', type: 'string', isOptional: true },
+        { name: 'icon_name', type: 'string', isOptional: true },
+        { name: 'is_active', type: 'boolean' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'beginner_program_days',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'program_id', type: 'string', isIndexed: true },
+        { name: 'week_number', type: 'number' },
+        { name: 'day_number', type: 'number' },
+        { name: 'day_title', type: 'string' },
+        { name: 'lesson_title', type: 'string' },
+        { name: 'lesson_content', type: 'string' },
+        { name: 'exercises', type: 'string' }, // JSON string
+        { name: 'order_index', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'user_program_enrollments',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'program_id', type: 'string', isIndexed: true },
+        { name: 'current_day_index', type: 'number' },
+        { name: 'days_completed', type: 'number' },
+        { name: 'started_at', type: 'number' },
+        { name: 'completed_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'user_program_day_progress',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'enrollment_id', type: 'string', isIndexed: true },
+        { name: 'program_day_id', type: 'string', isIndexed: true },
+        { name: 'workout_id', type: 'string', isOptional: true },
+        { name: 'lesson_read_at', type: 'number', isOptional: true },
+        { name: 'workout_completed_at', type: 'number', isOptional: true },
+        { name: 'skipped', type: 'boolean' },
+        { name: 'skip_reason', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
       ],
     }),
   ],

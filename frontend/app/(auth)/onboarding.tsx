@@ -8,6 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -16,6 +17,7 @@ import { database } from '../../src/db';
 import { userSettingsCollection } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../../src/services/supabase';
 
 type OnboardingPersona = 'NEWBIE' | 'CASUAL' | 'REGULAR' | 'DEDICATED' | null;
 type WeightUnit = 'KG' | 'LBS';
@@ -28,6 +30,7 @@ export default function OnboardingScreen() {
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('KG');
   const [persona, setPersona] = useState<OnboardingPersona>(null);
   const [loading, setLoading] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
     // Pre-fill name from user metadata if available
@@ -36,54 +39,59 @@ export default function OnboardingScreen() {
     }
   }, [user]);
 
+  const saveSettings = async () => {
+    if (!user) return;
+
+    // Get or create user settings
+    const existingSettings = await userSettingsCollection
+      .query(Q.where('user_id', user.id))
+      .fetch();
+
+    await database.write(async () => {
+      if (existingSettings.length > 0) {
+        const settings = existingSettings[0];
+        await settings.update((s) => {
+          s.onboardingCompleted = true;
+          s.onboardingPersona = persona || undefined;
+          s.workoutMode = persona === 'NEWBIE' || persona === 'CASUAL' ? 'SIMPLE' : 'FULL';
+          s.weightUnitPreference = weightUnit;
+          s.updatedAt = new Date();
+        });
+      } else {
+        // Create new settings
+        await userSettingsCollection.create((s) => {
+          s.serverId = uuidv4();
+          s.userId = user.id;
+          s.onboardingCompleted = true;
+          s.onboardingPersona = persona || undefined;
+          s.workoutMode = persona === 'NEWBIE' || persona === 'CASUAL' ? 'SIMPLE' : 'FULL';
+          s.weightUnitPreference = weightUnit;
+          s.distanceUnitPreference = 'KM';
+          s.themePreference = 'system';
+          s.keepScreenAwake = true;
+          s.timerAutoStart = true;
+          s.timerVibrationEnabled = true;
+          s.timerSoundEnabled = true;
+          s.inputModePlateMath = false;
+          s.preferredRpeSystem = 'RPE';
+          s.syncToHealthKit = false;
+          s.defaultWorkoutVisibility = 'PUBLIC';
+          s.activeInjuries = [];
+          s.notificationPreferences = {};
+          s.equipmentOverrides = {};
+          s.createdAt = new Date();
+          s.updatedAt = new Date();
+        });
+      }
+    });
+  };
+
   const handleComplete = async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      // Get or create user settings
-      const existingSettings = await userSettingsCollection
-        .query(Q.where('user_id', user.id))
-        .fetch();
-
-      await database.write(async () => {
-        if (existingSettings.length > 0) {
-          const settings = existingSettings[0];
-          await settings.update((s) => {
-            s.onboardingCompleted = true;
-            s.onboardingPersona = persona || undefined;
-            s.workoutMode = persona === 'NEWBIE' || persona === 'CASUAL' ? 'SIMPLE' : 'FULL';
-            s.weightUnitPreference = weightUnit;
-            s.updatedAt = new Date();
-          });
-        } else {
-          // Create new settings
-          await userSettingsCollection.create((s) => {
-            s.serverId = uuidv4();
-            s.userId = user.id;
-            s.onboardingCompleted = true;
-            s.onboardingPersona = persona || undefined;
-            s.workoutMode = persona === 'NEWBIE' || persona === 'CASUAL' ? 'SIMPLE' : 'FULL';
-            s.weightUnitPreference = weightUnit;
-            s.distanceUnitPreference = 'KM';
-            s.themePreference = 'system';
-            s.keepScreenAwake = true;
-            s.timerAutoStart = true;
-            s.timerVibrationEnabled = true;
-            s.timerSoundEnabled = true;
-            s.inputModePlateMath = false;
-            s.preferredRpeSystem = 'RPE';
-            s.syncToHealthKit = false;
-            s.defaultWorkoutVisibility = 'PUBLIC';
-            s.activeInjuries = [];
-            s.notificationPreferences = {};
-            s.equipmentOverrides = {};
-            s.createdAt = new Date();
-            s.updatedAt = new Date();
-          });
-        }
-      });
-
+      await saveSettings();
       // Navigate to main app
       router.replace('/(tabs)');
     } catch (error) {
@@ -92,6 +100,33 @@ export default function OnboardingScreen() {
       router.replace('/(tabs)');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnrollAndComplete = async () => {
+    if (!user) return;
+
+    setEnrolling(true);
+    try {
+      await saveSettings();
+
+      // Enroll in First 30 Days program
+      const { error } = await supabase.functions.invoke('enroll-program', {
+        body: { programCode: 'FIRST_30_DAYS' },
+      });
+
+      if (error) {
+        console.error('Error enrolling in program:', error);
+      }
+
+      // Navigate to program tab
+      router.replace('/(tabs)/program' as never);
+    } catch (error) {
+      console.error('Error enrolling:', error);
+      // Still navigate to main app
+      router.replace('/(tabs)');
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -251,12 +286,99 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
-              onPress={handleComplete}
+              onPress={() => {
+                // Show Step 3 for NEWBIE, otherwise complete
+                if (persona === 'NEWBIE') {
+                  setStep(3);
+                } else {
+                  handleComplete();
+                }
+              }}
               disabled={loading}
             >
-              <Text style={[styles.buttonText, { color: colors.background }]}>Get Started</Text>
+              <Text style={[styles.buttonText, { color: colors.background }]}>
+                {loading ? 'Loading...' : 'Continue'}
+              </Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // Screen 3: First 30 Days Program (NEWBIE only)
+  if (step === 3) {
+    return (
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.programEmoji}>📚</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
+              Start Your Journey
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              We have a special program just for you!
+            </Text>
+          </View>
+
+          <View style={[styles.programCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+            <Text style={[styles.programTitle, { color: colors.primary }]}>
+              First 30 Days
+            </Text>
+            <Text style={[styles.programDescription, { color: colors.textPrimary }]}>
+              A 4-week guided program designed for beginners
+            </Text>
+            <View style={styles.programFeatures}>
+              <View style={styles.programFeature}>
+                <Text style={styles.programFeatureIcon}>📖</Text>
+                <Text style={[styles.programFeatureText, { color: colors.textSecondary }]}>
+                  Learn gym fundamentals
+                </Text>
+              </View>
+              <View style={styles.programFeature}>
+                <Text style={styles.programFeatureIcon}>🎥</Text>
+                <Text style={[styles.programFeatureText, { color: colors.textSecondary }]}>
+                  Video demos for every exercise
+                </Text>
+              </View>
+              <View style={styles.programFeature}>
+                <Text style={styles.programFeatureIcon}>💪</Text>
+                <Text style={[styles.programFeatureText, { color: colors.textSecondary }]}>
+                  12 structured workouts
+                </Text>
+              </View>
+              <View style={styles.programFeature}>
+                <Text style={styles.programFeatureIcon}>🏆</Text>
+                <Text style={[styles.programFeatureText, { color: colors.textSecondary }]}>
+                  Earn a completion badge
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.enrollButton, { backgroundColor: colors.primary }]}
+            onPress={handleEnrollAndComplete}
+            disabled={enrolling}
+          >
+            {enrolling ? (
+              <ActivityIndicator size="small" color={colors.background} />
+            ) : (
+              <Text style={[styles.buttonText, { color: colors.background }]}>
+                Start First 30 Days
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.skipProgramButton]}
+            onPress={handleComplete}
+            disabled={enrolling || loading}
+          >
+            <Text style={[styles.skipProgramText, { color: colors.textMuted }]}>
+              Maybe later - I'll explore on my own
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     );
@@ -366,5 +488,57 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  programEmoji: {
+    fontSize: 64,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  programCard: {
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 24,
+    marginBottom: 24,
+  },
+  programTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  programDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  programFeatures: {
+    gap: 12,
+  },
+  programFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  programFeatureIcon: {
+    fontSize: 20,
+    marginRight: 12,
+    width: 28,
+  },
+  programFeatureText: {
+    fontSize: 15,
+    flex: 1,
+  },
+  enrollButton: {
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  skipProgramButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  skipProgramText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

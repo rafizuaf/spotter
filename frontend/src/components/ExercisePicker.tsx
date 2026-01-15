@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Q } from '@nozbe/watermelondb';
 import { database, exercisesCollection, userSettingsCollection } from '../db';
 import { useAuthStore } from '../stores/authStore';
@@ -22,6 +23,8 @@ import {
   formatSuggestedWeight,
   type Gender,
 } from '../constants/startingWeights';
+import { hasVideoDemo } from '../utils/videoUrl';
+import ExerciseDetailModal from './ExerciseDetailModal';
 
 interface ExercisePickerProps {
   visible: boolean;
@@ -53,6 +56,10 @@ export default function ExercisePicker({
   const [loading, setLoading] = useState(true);
   const [userGender, setUserGender] = useState<Gender>('OTHER');
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
+
+  // Exercise detail modal state
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedExerciseForDetail, setSelectedExerciseForDetail] = useState<Exercise | null>(null);
 
   // Custom exercise creation state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -185,6 +192,19 @@ export default function ExercisePicker({
     setShowCreateForm(false);
   };
 
+  const handleViewDemo = (exercise: Exercise) => {
+    setSelectedExerciseForDetail(exercise);
+    setDetailModalVisible(true);
+  };
+
+  const handleSelectFromDetail = (exercise: Exercise) => {
+    onSelectExercise(exercise.serverId, exercise.name);
+    setSearchQuery('');
+    setSelectedMuscleGroup('All');
+    setDetailModalVisible(false);
+    onClose();
+  };
+
   const renderExerciseItem = ({ item }: { item: Exercise }) => {
     const suggestedWeight = getSuggestedWeight(item.name, userGender, 'BEGINNER');
     const showSuggestion = suggestedWeight !== null && suggestedWeight > 0;
@@ -209,7 +229,18 @@ export default function ExercisePicker({
             )}
           </View>
         </View>
-        <Text style={styles.selectIcon}>+</Text>
+        <View style={styles.exerciseActions}>
+          {hasVideoDemo(item.videoUrl) && (
+            <TouchableOpacity
+              style={styles.demoButton}
+              onPress={() => handleViewDemo(item)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="play-circle-outline" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.selectIcon}>+</Text>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -367,6 +398,14 @@ export default function ExercisePicker({
           )}
         </View>
       </View>
+
+      {/* Exercise Detail Modal */}
+      <ExerciseDetailModal
+        visible={detailModalVisible}
+        exercise={selectedExerciseForDetail}
+        onClose={() => setDetailModalVisible(false)}
+        onSelect={handleSelectFromDetail}
+      />
     </Modal>
   );
 }
@@ -574,5 +613,13 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 24,
     fontWeight: '300',
+  },
+  exerciseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  demoButton: {
+    padding: 4,
   },
 });

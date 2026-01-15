@@ -18,6 +18,10 @@ import Notification from './Notification';
 import PushDevice from './PushDevice';
 import UserActivityWeek from './UserActivityWeek';
 import UserStreakLog from './UserStreakLog';
+import BeginnerProgram from './BeginnerProgram';
+import BeginnerProgramDay from './BeginnerProgramDay';
+import UserProgramEnrollment from './UserProgramEnrollment';
+import UserProgramDayProgress from './UserProgramDayProgress';
 
 export {
   User,
@@ -40,6 +44,10 @@ export {
   PushDevice,
   UserActivityWeek,
   UserStreakLog,
+  BeginnerProgram,
+  BeginnerProgramDay,
+  UserProgramEnrollment,
+  UserProgramDayProgress,
 };
 
 export const modelClasses = [
@@ -63,4 +71,8 @@ export const modelClasses = [
   PushDevice,
   UserActivityWeek,
   UserStreakLog,
+  BeginnerProgram,
+  BeginnerProgramDay,
+  UserProgramEnrollment,
+  UserProgramDayProgress,
 ];

@@ -24,6 +24,10 @@ const SYNC_TABLES = [
   'push_devices', // Push device tokens to server
   'user_activity_weeks', // Weekly activity tracking (v2)
   'user_streak_logs', // Streak tracking (v2)
+  'beginner_programs', // Read-only from backend (First 30 Days)
+  'beginner_program_days', // Read-only from backend (First 30 Days)
+  'user_program_enrollments', // User program progress (First 30 Days)
+  'user_program_day_progress', // User daily progress (First 30 Days)
 ];
 
 interface SyncPullResponse {

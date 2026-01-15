@@ -19,6 +19,10 @@ import type UserBlock from './models/UserBlock';
 import type SocialPost from './models/SocialPost';
 import type Notification from './models/Notification';
 import type PushDevice from './models/PushDevice';
+import type BeginnerProgram from './models/BeginnerProgram';
+import type BeginnerProgramDay from './models/BeginnerProgramDay';
+import type UserProgramEnrollment from './models/UserProgramEnrollment';
+import type UserProgramDayProgress from './models/UserProgramDayProgress';
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
@@ -54,5 +58,11 @@ export const userBlocksCollection = database.get<UserBlock>('user_blocks');
 export const socialPostsCollection = database.get<SocialPost>('social_posts');
 export const notificationsCollection = database.get<Notification>('notifications');
 export const pushDevicesCollection = database.get<PushDevice>('push_devices');
+
+// First 30 Days Program collections
+export const beginnerProgramsCollection = database.get<BeginnerProgram>('beginner_programs');
+export const beginnerProgramDaysCollection = database.get<BeginnerProgramDay>('beginner_program_days');
+export const userProgramEnrollmentsCollection = database.get<UserProgramEnrollment>('user_program_enrollments');
+export const userProgramDayProgressCollection = database.get<UserProgramDayProgress>('user_program_day_progress');
 
 export default database;
