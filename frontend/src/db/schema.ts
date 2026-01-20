@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 3, // Updated for First 30 Days program
+  version: 4, // Updated for Rest Timer default settings
   tables: [
     // ============================================
     // Users & Settings
@@ -41,6 +41,7 @@ export const schema = appSchema({
         { name: 'timer_vibration_enabled', type: 'boolean' },
         { name: 'timer_sound_enabled', type: 'boolean' },
         { name: 'input_mode_plate_math', type: 'boolean' },
+        { name: 'default_rest_time_seconds', type: 'number', isOptional: true },
         { name: 'preferred_rpe_system', type: 'string' },
         { name: 'sync_to_health_kit', type: 'boolean' },
         { name: 'auto_play_music_service', type: 'string', isOptional: true },

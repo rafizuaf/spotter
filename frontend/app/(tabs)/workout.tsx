@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useWorkoutStore } from '../../src/stores/workoutStore';
 import ExercisePicker from '../../src/components/ExercisePicker';
+import RestTimer from '../../src/components/RestTimer';
+import { useRestTimerStore } from '../../src/stores/restTimerStore';
 import { ViralShareModal } from '../../src/components/viral';
 import type { ViralShareType } from '../../src/components/viral';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -44,12 +46,22 @@ export default function WorkoutScreen() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [workoutMode, setWorkoutMode] = useState<'SIMPLE' | 'FULL'>('SIMPLE');
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
-  
+
   // Viral sharing state
   const [showShareModal, setShowShareModal] = useState(false);
   const [completedWorkoutId, setCompletedWorkoutId] = useState<string | null>(null);
   const [shareType, setShareType] = useState<ViralShareType>('NUTRITION_LABEL');
-  
+
+  // Rest timer state
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const {
+    isRunning: timerIsRunning,
+    autoStart: timerAutoStart,
+    startTimer,
+    stopTimer,
+    loadUserPreferences: loadTimerPreferences,
+  } = useRestTimerStore();
+
   // Refs for auto-advance cursor
   const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
   const repsInputRefs = useRef<{ [key: string]: TextInput | null }>({});
@@ -68,6 +80,14 @@ export default function WorkoutScreen() {
           const record = settings[0] as UserSettings;
           setWorkoutMode((record.workoutMode as 'SIMPLE' | 'FULL') || 'SIMPLE');
           setWeightUnit((record.weightUnitPreference as 'KG' | 'LBS') || 'KG');
+
+          // Load timer preferences
+          loadTimerPreferences({
+            timerAutoStart: record.timerAutoStart ?? true,
+            timerVibrationEnabled: record.timerVibrationEnabled ?? true,
+            timerSoundEnabled: record.timerSoundEnabled ?? true,
+            defaultRestTimeSeconds: record.defaultRestTimeSeconds ?? 90,
+          });
         }
       } catch (error) {
         console.error('Error loading workout settings:', error);
@@ -89,6 +109,39 @@ export default function WorkoutScreen() {
     addExercise(exerciseId, exerciseName);
     setShowExercisePicker(false);
   };
+
+  // Handle set completion - wraps toggleSetComplete with timer auto-start
+  const handleSetComplete = useCallback(
+    (exerciseEntryId: string, setId: string) => {
+      // Get the current set state before toggling
+      const exercise = exercises.find((e) => e.id === exerciseEntryId);
+      const set = exercise?.sets.find((s) => s.id === setId);
+      const wasCompleted = set?.completed ?? false;
+
+      // Toggle the set completion
+      toggleSetComplete(exerciseEntryId, setId);
+
+      // If the set is now being marked as completed (was not completed before)
+      // and timer auto-start is enabled, start the rest timer
+      if (!wasCompleted && timerAutoStart) {
+        setShowRestTimer(true);
+        startTimer();
+      }
+    },
+    [exercises, toggleSetComplete, timerAutoStart, startTimer]
+  );
+
+  // Handle timer dismiss
+  const handleTimerDismiss = useCallback(() => {
+    setShowRestTimer(false);
+    stopTimer();
+  }, [stopTimer]);
+
+  // Handle timer complete
+  const handleTimerComplete = useCallback(() => {
+    // Timer has finished - we could add additional logic here
+    // For now, just keep the timer visible so user can restart or dismiss
+  }, []);
 
   // Auto-advance cursor: weight -> reps -> next set
   const handleWeightSubmit = (exerciseId: string, setId: string, value: string) => {
@@ -366,7 +419,7 @@ export default function WorkoutScreen() {
                         { backgroundColor: colors.surfaceElevated },
                         set.completed && { backgroundColor: colors.success },
                       ]}
-                      onPress={() => toggleSetComplete(exercise.id, set.id)}
+                      onPress={() => handleSetComplete(exercise.id, set.id)}
                     >
                       <Text style={[styles.checkText, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
                     </TouchableOpacity>
@@ -424,7 +477,7 @@ export default function WorkoutScreen() {
                         { backgroundColor: colors.surfaceElevated },
                         set.completed && { backgroundColor: colors.success },
                       ]}
-                      onPress={() => toggleSetComplete(exercise.id, set.id)}
+                      onPress={() => handleSetComplete(exercise.id, set.id)}
                     >
                       <Text style={[styles.checkTextSimple, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
                     </TouchableOpacity>
@@ -472,6 +525,13 @@ export default function WorkoutScreen() {
         }}
         workoutId={completedWorkoutId ?? undefined}
         shareType={shareType}
+      />
+
+      {/* Rest Timer */}
+      <RestTimer
+        visible={showRestTimer || timerIsRunning}
+        onDismiss={handleTimerDismiss}
+        onComplete={handleTimerComplete}
       />
     </View>
   );

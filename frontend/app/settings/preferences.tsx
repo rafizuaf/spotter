@@ -20,6 +20,15 @@ import { useTheme } from '../../src/hooks/useTheme';
 type WeightUnit = 'kg' | 'lbs';
 type DistanceUnit = 'km' | 'miles';
 
+// Rest time presets in seconds
+const REST_TIME_OPTIONS = [
+  { label: '30s', value: 30 },
+  { label: '60s', value: 60 },
+  { label: '90s', value: 90 },
+  { label: '2m', value: 120 },
+  { label: '3m', value: 180 },
+];
+
 export default function PreferencesSettingsScreen() {
   const { user } = useAuthStore();
   const colors = useTheme();
@@ -30,6 +39,7 @@ export default function PreferencesSettingsScreen() {
   const [timerAutoStart, setTimerAutoStart] = useState(true);
   const [timerVibration, setTimerVibration] = useState(true);
   const [timerSound, setTimerSound] = useState(true);
+  const [defaultRestTime, setDefaultRestTime] = useState(90);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +64,7 @@ export default function PreferencesSettingsScreen() {
         setTimerAutoStart(record.timerAutoStart ?? true);
         setTimerVibration(record.timerVibrationEnabled ?? true);
         setTimerSound(record.timerSoundEnabled ?? true);
+        setDefaultRestTime(record.defaultRestTimeSeconds ?? 90);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -75,6 +86,7 @@ export default function PreferencesSettingsScreen() {
           record.timerAutoStart = timerAutoStart;
           record.timerVibrationEnabled = timerVibration;
           record.timerSoundEnabled = timerSound;
+          record.defaultRestTimeSeconds = defaultRestTime;
         });
       });
 
@@ -271,6 +283,43 @@ export default function PreferencesSettingsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Default Rest Time Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Default Rest Time</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.restTimeContainer}>
+              {REST_TIME_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.restTimeButton,
+                    { backgroundColor: colors.surfaceElevated },
+                    defaultRestTime === option.value && { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setDefaultRestTime(option.value)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set default rest time to ${option.label}`}
+                  accessibilityState={{ selected: defaultRestTime === option.value }}
+                >
+                  <Text
+                    style={[
+                      styles.restTimeButtonText,
+                      { color: colors.textSecondary },
+                      defaultRestTime === option.value && { color: colors.background },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[styles.restTimeHint, { color: colors.textMuted }]}>
+              Timer will start with this duration after completing a set
+            </Text>
+          </View>
+        </View>
       </ScrollView>
     </>
   );
@@ -342,5 +391,27 @@ const styles = StyleSheet.create({
   switchLabel: {
     flex: 1,
     marginRight: 16,
+  },
+  restTimeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 12,
+    gap: 8,
+  },
+  restTimeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  restTimeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  restTimeHint: {
+    fontSize: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
 });

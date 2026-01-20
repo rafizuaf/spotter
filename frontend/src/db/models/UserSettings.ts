@@ -28,6 +28,7 @@ export default class UserSettings extends Model {
   @field('timer_vibration_enabled') timerVibrationEnabled!: boolean;
   @field('timer_sound_enabled') timerSoundEnabled!: boolean;
   @field('input_mode_plate_math') inputModePlateMath!: boolean;
+  @field('default_rest_time_seconds') defaultRestTimeSeconds?: number;
   @text('preferred_rpe_system') preferredRpeSystem!: string;
   @field('sync_to_health_kit') syncToHealthKit!: boolean;
   @text('auto_play_music_service') autoPlayMusicService?: string;
