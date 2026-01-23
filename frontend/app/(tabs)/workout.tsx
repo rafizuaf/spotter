@@ -11,6 +11,7 @@ import {
 import { useWorkoutStore } from '../../src/stores/workoutStore';
 import ExercisePicker from '../../src/components/ExercisePicker';
 import RestTimer from '../../src/components/RestTimer';
+import QuickSelectSetRow from '../../src/components/QuickSelectSetRow';
 import { useRestTimerStore } from '../../src/stores/restTimerStore';
 import { ViralShareModal } from '../../src/components/viral';
 import type { ViralShareType } from '../../src/components/viral';
@@ -19,10 +20,12 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { userSettingsCollection } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import type UserSettings from '../../src/db/models/UserSettings';
+import type { Gender } from '../../src/constants/startingWeights';
 
 export default function WorkoutScreen() {
   const {
     isActive,
+    workoutId,
     workoutName,
     workoutNote,
     visibility,
@@ -34,6 +37,7 @@ export default function WorkoutScreen() {
     removeSet,
     updateSet,
     toggleSetComplete,
+    quickCompleteSet,
     updateWorkoutName,
     updateWorkoutNote,
     updateVisibility,
@@ -46,6 +50,8 @@ export default function WorkoutScreen() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [workoutMode, setWorkoutMode] = useState<'SIMPLE' | 'FULL'>('SIMPLE');
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
+  const [userGender, setUserGender] = useState<Gender>('OTHER');
+  const [quickSelectEnabled, setQuickSelectEnabled] = useState(true);
 
   // Viral sharing state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -80,6 +86,7 @@ export default function WorkoutScreen() {
           const record = settings[0] as UserSettings;
           setWorkoutMode((record.workoutMode as 'SIMPLE' | 'FULL') || 'SIMPLE');
           setWeightUnit((record.weightUnitPreference as 'KG' | 'LBS') || 'KG');
+          setUserGender((record.gender as Gender) || 'OTHER');
 
           // Load timer preferences
           loadTimerPreferences({
@@ -129,6 +136,31 @@ export default function WorkoutScreen() {
       }
     },
     [exercises, toggleSetComplete, timerAutoStart, startTimer]
+  );
+
+  // Handle quick complete set (3-tap flow)
+  const handleQuickCompleteSet = useCallback(
+    (exerciseEntryId: string, setId: string, weight: string, reps: string) => {
+      // Complete the set with weight and reps in one action
+      quickCompleteSet(exerciseEntryId, setId, weight, reps);
+
+      // Start rest timer if auto-start is enabled
+      if (timerAutoStart) {
+        setShowRestTimer(true);
+        startTimer();
+      }
+
+      // Auto-add next set after completion
+      const exercise = exercises.find((e) => e.id === exerciseEntryId);
+      if (exercise) {
+        const currentSetIndex = exercise.sets.findIndex((s) => s.id === setId);
+        // If this was the last set, add a new one
+        if (currentSetIndex === exercise.sets.length - 1) {
+          addSet(exerciseEntryId);
+        }
+      }
+    },
+    [exercises, quickCompleteSet, timerAutoStart, startTimer, addSet]
   );
 
   // Handle timer dismiss
@@ -427,62 +459,95 @@ export default function WorkoutScreen() {
                 ))}
               </>
             ) : (
-              // Simple Mode: Weight + Reps only, big buttons
+              // Simple Mode: Quick-select 3-tap logging
               <>
-                <View style={styles.setHeaderSimple}>
-                  <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>SET</Text>
-                  <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>{weightUnit}</Text>
-                  <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>REPS</Text>
-                  <Text style={styles.setHeaderTextSimple}></Text>
-                </View>
+                {quickSelectEnabled ? (
+                  // 3-Tap Quick Select Mode
+                  exercise.sets.map((set, index) => {
+                    // Get previous set weight/reps for carry-forward
+                    const previousSet = index > 0 ? exercise.sets[index - 1] : null;
 
-                {exercise.sets.map((set, index) => (
-                  <View key={set.id} style={styles.setRowSimple}>
-                    <Text style={[styles.setNumberSimple, { color: colors.textPrimary }]}>{index + 1}</Text>
-                    <TextInput
-                      ref={(ref) => {
-                        const key = `${exercise.id}-${set.id}-weight`;
-                        weightInputRefs.current[key] = ref;
-                      }}
-                      style={[styles.setInputSimple, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
-                      value={set.weightKg}
-                      onChangeText={(value) =>
-                        updateSet(exercise.id, set.id, { weightKg: value })
-                      }
-                      onSubmitEditing={() => handleWeightSubmit(exercise.id, set.id, set.weightKg)}
-                      placeholder="0"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      returnKeyType="next"
-                    />
-                    <TextInput
-                      ref={(ref) => {
-                        const key = `${exercise.id}-${set.id}-reps`;
-                        repsInputRefs.current[key] = ref;
-                      }}
-                      style={[styles.setInputSimple, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
-                      value={set.reps}
-                      onChangeText={(value) =>
-                        updateSet(exercise.id, set.id, { reps: value })
-                      }
-                      onSubmitEditing={() => handleRepsSubmit(exercise.id, set.id, set.reps)}
-                      placeholder="0"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      returnKeyType="next"
-                    />
-                    <TouchableOpacity
-                      style={[
-                        styles.checkButtonSimple,
-                        { backgroundColor: colors.surfaceElevated },
-                        set.completed && { backgroundColor: colors.success },
-                      ]}
-                      onPress={() => handleSetComplete(exercise.id, set.id)}
-                    >
-                      <Text style={[styles.checkTextSimple, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                    return (
+                      <QuickSelectSetRow
+                        key={set.id}
+                        setIndex={index + 1}
+                        exerciseEntryId={exercise.id}
+                        exerciseId={set.exerciseId}
+                        exerciseName={set.exerciseName}
+                        currentWeight={set.weightKg}
+                        currentReps={set.reps}
+                        isCompleted={set.completed}
+                        weightUnit={weightUnit}
+                        workoutMode={workoutMode}
+                        userGender={userGender}
+                        currentWorkoutId={workoutId}
+                        previousSetWeight={previousSet?.weightKg}
+                        previousSetReps={previousSet?.reps}
+                        onWeightChange={(value) => updateSet(exercise.id, set.id, { weightKg: value })}
+                        onRepsChange={(value) => updateSet(exercise.id, set.id, { reps: value })}
+                        onComplete={() => handleQuickCompleteSet(exercise.id, set.id, set.weightKg, set.reps)}
+                      />
+                    );
+                  })
+                ) : (
+                  // Legacy Simple Mode (fallback)
+                  <>
+                    <View style={styles.setHeaderSimple}>
+                      <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>SET</Text>
+                      <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>{weightUnit}</Text>
+                      <Text style={[styles.setHeaderTextSimple, { color: colors.textMuted }]}>REPS</Text>
+                      <Text style={styles.setHeaderTextSimple}></Text>
+                    </View>
+
+                    {exercise.sets.map((set, index) => (
+                      <View key={set.id} style={styles.setRowSimple}>
+                        <Text style={[styles.setNumberSimple, { color: colors.textPrimary }]}>{index + 1}</Text>
+                        <TextInput
+                          ref={(ref) => {
+                            const key = `${exercise.id}-${set.id}-weight`;
+                            weightInputRefs.current[key] = ref;
+                          }}
+                          style={[styles.setInputSimple, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                          value={set.weightKg}
+                          onChangeText={(value) =>
+                            updateSet(exercise.id, set.id, { weightKg: value })
+                          }
+                          onSubmitEditing={() => handleWeightSubmit(exercise.id, set.id, set.weightKg)}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="numeric"
+                          returnKeyType="next"
+                        />
+                        <TextInput
+                          ref={(ref) => {
+                            const key = `${exercise.id}-${set.id}-reps`;
+                            repsInputRefs.current[key] = ref;
+                          }}
+                          style={[styles.setInputSimple, { backgroundColor: colors.surfaceElevated, color: colors.textPrimary }]}
+                          value={set.reps}
+                          onChangeText={(value) =>
+                            updateSet(exercise.id, set.id, { reps: value })
+                          }
+                          onSubmitEditing={() => handleRepsSubmit(exercise.id, set.id, set.reps)}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="numeric"
+                          returnKeyType="next"
+                        />
+                        <TouchableOpacity
+                          style={[
+                            styles.checkButtonSimple,
+                            { backgroundColor: colors.surfaceElevated },
+                            set.completed && { backgroundColor: colors.success },
+                          ]}
+                          onPress={() => handleSetComplete(exercise.id, set.id)}
+                        >
+                          <Text style={[styles.checkTextSimple, { color: colors.textPrimary }]}>{set.completed ? '✓' : ''}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </>
+                )}
               </>
             )}
 

@@ -54,6 +54,7 @@ interface WorkoutState {
   removeSet: (exerciseEntryId: string, setId: string) => void;
   updateSet: (exerciseEntryId: string, setId: string, updates: Partial<WorkoutSet>) => void;
   toggleSetComplete: (exerciseEntryId: string, setId: string) => void;
+  quickCompleteSet: (exerciseEntryId: string, setId: string, weight: string, reps: string) => void;
   updateWorkoutName: (name: string) => void;
   updateWorkoutNote: (note: string) => void;
   updateVisibility: (visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => void;
@@ -189,6 +190,30 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
             sets: ex.sets.map((s) => {
               if (s.id === setId) {
                 return { ...s, completed: !s.completed };
+              }
+              return s;
+            }),
+          };
+        }
+        return ex;
+      }),
+    }));
+  },
+
+  quickCompleteSet: (exerciseEntryId: string, setId: string, weight: string, reps: string) => {
+    set((state) => ({
+      exercises: state.exercises.map((ex) => {
+        if (ex.id === exerciseEntryId) {
+          return {
+            ...ex,
+            sets: ex.sets.map((s) => {
+              if (s.id === setId) {
+                return {
+                  ...s,
+                  weightKg: weight,
+                  reps: reps,
+                  completed: true,
+                };
               }
               return s;
             }),
