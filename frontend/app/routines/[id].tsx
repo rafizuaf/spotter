@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,21 +12,12 @@ import { Q } from '@nozbe/watermelondb';
 import { database, routinesCollection, routineExercisesCollection, exercisesCollection } from '../../src/db';
 import { useWorkoutStore } from '../../src/stores/workoutStore';
 import ExercisePicker from '../../src/components/ExercisePicker';
+import InlineRoutineExerciseCard, { type RoutineExerciseData } from '../../src/components/InlineRoutineExerciseCard';
 import type Routine from '../../src/db/models/Routine';
 import type RoutineExercise from '../../src/db/models/RoutineExercise';
 import type Exercise from '../../src/db/models/Exercise';
 import { v4 as uuid } from 'uuid';
 import { useTheme } from '../../src/hooks/useTheme';
-
-interface RoutineExerciseWithDetails {
-  id: string;
-  serverId: string;
-  exerciseId: string;
-  exerciseName: string;
-  targetSets?: number;
-  targetReps?: number;
-  orderIndex: string;
-}
 
 export default function RoutineDetailScreen() {
   const router = useRouter();
@@ -35,9 +26,10 @@ export default function RoutineDetailScreen() {
   const colors = useTheme();
 
   const [routineName, setRoutineName] = useState('');
-  const [exercises, setExercises] = useState<RoutineExerciseWithDetails[]>([]);
+  const [exercises, setExercises] = useState<RoutineExerciseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRoutine();
@@ -84,7 +76,7 @@ export default function RoutineDetailScreen() {
       );
 
       // Sort by order index
-      exercisesWithDetails.sort((a: RoutineExerciseWithDetails, b: RoutineExerciseWithDetails) =>
+      exercisesWithDetails.sort((a: RoutineExerciseData, b: RoutineExerciseData) =>
         a.orderIndex.localeCompare(b.orderIndex)
       );
       setExercises(exercisesWithDetails);
@@ -140,12 +132,94 @@ export default function RoutineDetailScreen() {
         });
       });
 
+      // Collapse if removing the expanded exercise
+      if (expandedExerciseId === exerciseId) {
+        setExpandedExerciseId(null);
+      }
+
       loadRoutine();
     } catch (error) {
       console.error('Error removing exercise:', error);
       Alert.alert('Error', 'Failed to remove exercise');
     }
   };
+
+  const handleUpdateExercise = useCallback(async (serverId: string, targetSets: number, targetReps: number) => {
+    try {
+      const routineExercise = await routineExercisesCollection
+        .query(Q.where('server_id', serverId))
+        .fetch();
+
+      if (routineExercise.length === 0) return;
+
+      await database.write(async () => {
+        await routineExercise[0].update((re: RoutineExercise) => {
+          re.targetSets = targetSets;
+          re.targetReps = targetReps;
+        });
+      });
+
+      // Update local state immediately for responsive UI
+      setExercises(prev => prev.map(ex =>
+        ex.serverId === serverId
+          ? { ...ex, targetSets, targetReps }
+          : ex
+      ));
+    } catch (error) {
+      console.error('Error updating exercise:', error);
+      Alert.alert('Error', 'Failed to update exercise');
+    }
+  }, []);
+
+  const handleToggleExpand = useCallback((serverId: string) => {
+    setExpandedExerciseId(prev => prev === serverId ? null : serverId);
+  }, []);
+
+  const handleMoveExercise = useCallback(async (serverId: string, direction: 'up' | 'down') => {
+    try {
+      const currentIndex = exercises.findIndex(ex => ex.serverId === serverId);
+      if (currentIndex === -1) return;
+
+      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (newIndex < 0 || newIndex >= exercises.length) return;
+
+      const currentExercise = exercises[currentIndex];
+      const swapExercise = exercises[newIndex];
+
+      // Swap order indices
+      const currentOrderIndex = currentExercise.orderIndex;
+      const swapOrderIndex = swapExercise.orderIndex;
+
+      // Update both exercises in the database
+      const [currentRecord] = await routineExercisesCollection
+        .query(Q.where('server_id', currentExercise.serverId))
+        .fetch();
+      const [swapRecord] = await routineExercisesCollection
+        .query(Q.where('server_id', swapExercise.serverId))
+        .fetch();
+
+      if (!currentRecord || !swapRecord) return;
+
+      await database.write(async () => {
+        await currentRecord.update((re: RoutineExercise) => {
+          re.orderIndex = swapOrderIndex;
+        });
+        await swapRecord.update((re: RoutineExercise) => {
+          re.orderIndex = currentOrderIndex;
+        });
+      });
+
+      // Update local state for immediate feedback
+      const newExercises = [...exercises];
+      newExercises[currentIndex] = { ...currentExercise, orderIndex: swapOrderIndex };
+      newExercises[newIndex] = { ...swapExercise, orderIndex: currentOrderIndex };
+      newExercises.sort((a, b) => a.orderIndex.localeCompare(b.orderIndex));
+      setExercises(newExercises);
+    } catch (error) {
+      console.error('Error moving exercise:', error);
+      Alert.alert('Error', 'Failed to reorder exercise');
+    }
+  }, [exercises]);
 
   const handleStartWorkout = async () => {
     try {
@@ -240,24 +314,23 @@ export default function RoutineDetailScreen() {
         {exercises.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No exercises yet</Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Add exercises to this routine</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Tap "Add Exercise" to build your routine</Text>
           </View>
         ) : (
           exercises.map((exercise, index) => (
-            <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: colors.surface }]}>
-              <View style={styles.exerciseHeader}>
-                <Text style={[styles.exerciseNumber, { color: colors.primary }]}>{index + 1}</Text>
-                <View style={styles.exerciseInfo}>
-                  <Text style={[styles.exerciseName, { color: colors.textPrimary }]}>{exercise.exerciseName}</Text>
-                  <Text style={[styles.exerciseTarget, { color: colors.textSecondary }]}>
-                    {exercise.targetSets} sets × {exercise.targetReps} reps
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => handleRemoveExercise(exercise.serverId)}>
-                  <Text style={[styles.removeButton, { color: colors.error }]}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <InlineRoutineExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              index={index + 1}
+              isExpanded={expandedExerciseId === exercise.serverId}
+              isFirst={index === 0}
+              isLast={index === exercises.length - 1}
+              onToggleExpand={() => handleToggleExpand(exercise.serverId)}
+              onUpdate={handleUpdateExercise}
+              onRemove={handleRemoveExercise}
+              onMoveUp={(serverId) => handleMoveExercise(serverId, 'up')}
+              onMoveDown={(serverId) => handleMoveExercise(serverId, 'down')}
+            />
           ))
         )}
 
@@ -348,35 +421,6 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
-  },
-  exerciseCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  exerciseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  exerciseNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    width: 32,
-  },
-  exerciseInfo: {
-    flex: 1,
-  },
-  exerciseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  exerciseTarget: {
-    fontSize: 14,
-  },
-  removeButton: {
-    fontSize: 20,
-    padding: 8,
   },
   addExerciseButton: {
     borderRadius: 12,
