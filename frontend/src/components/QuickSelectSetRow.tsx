@@ -16,6 +16,7 @@ import {
   REP_PRESETS,
   getDefaultReps,
 } from '../hooks/useExerciseHistory';
+import PlateCalculatorModal from './PlateCalculatorModal';
 import type { Colors } from '../utils/colors';
 import type { Gender } from '../constants/startingWeights';
 
@@ -100,6 +101,7 @@ export default function QuickSelectSetRow({
   // State for manual entry mode
   const [showManualWeight, setShowManualWeight] = useState(false);
   const [showManualReps, setShowManualReps] = useState(false);
+  const [showPlateCalculator, setShowPlateCalculator] = useState(false);
 
   // Refs for manual input
   const weightInputRef = useRef<TextInput>(null);
@@ -378,6 +380,20 @@ export default function QuickSelectSetRow({
             >
               <Ionicons name="keypad-outline" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
+
+            {/* Plate calculator button */}
+            <TouchableOpacity
+              style={styles.plateCalcButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                setShowPlateCalculator(true);
+              }}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Open plate calculator"
+            >
+              <Ionicons name="barbell-outline" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -500,6 +516,20 @@ export default function QuickSelectSetRow({
           {canComplete ? 'COMPLETE' : 'SELECT WEIGHT & REPS'}
         </Text>
       </TouchableOpacity>
+
+      {/* Plate Calculator Modal */}
+      <PlateCalculatorModal
+        visible={showPlateCalculator}
+        initialWeight={selectedWeight ? getDisplayWeight(selectedWeight) : 0}
+        weightUnit={weightUnit}
+        onClose={() => setShowPlateCalculator(false)}
+        onConfirm={(weight) => {
+          // Convert display weight back to canonical KG if needed
+          const weightKg = weightUnit === 'LBS' ? weight / 2.20462 : weight;
+          onWeightChange(weightKg.toFixed(1));
+          setShowPlateCalculator(false);
+        }}
+      />
     </Animated.View>
   );
 }
@@ -621,6 +651,14 @@ const createStyles = (colors: Colors) =>
       color: colors.textSecondary,
     },
     keyboardButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    plateCalcButton: {
       paddingHorizontal: 10,
       paddingVertical: 10,
       borderRadius: 10,
