@@ -6,12 +6,24 @@ import { database } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import LevelProgress from '../../src/components/LevelProgress';
 import BadgeCard from '../../src/components/BadgeCard';
+import StrengthStandardsCard from '../../src/components/StrengthStandardsCard';
 import { ViralShareModal } from '../../src/components/viral';
 import type { ViralShareType } from '../../src/components/viral';
 import type UserLevel from '../../src/db/models/UserLevel';
 import type UserBadge from '../../src/db/models/UserBadge';
 import type Achievement from '../../src/db/models/Achievement';
+import type UserSettings from '../../src/db/models/UserSettings';
+import type UserBodyLog from '../../src/db/models/UserBodyLog';
+import type WorkoutSet from '../../src/db/models/WorkoutSet';
+import type Exercise from '../../src/db/models/Exercise';
 import { useTheme } from '../../src/hooks/useTheme';
+import {
+  calculateStrengthRating,
+  processBestLifts,
+  type StrengthRating,
+  type UserLiftData,
+} from '../../src/utils/strengthCalculations';
+import { getSupportedExercises } from '../../src/constants/strengthStandards';
 
 interface BadgeWithAchievement {
   id: string;
@@ -21,6 +33,12 @@ interface BadgeWithAchievement {
   achievement?: Achievement;
 }
 
+interface StrengthStandardData {
+  exerciseName: string;
+  userOneRepMax: number;
+  rating: StrengthRating;
+}
+
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const colors = useTheme();
@@ -28,7 +46,14 @@ export default function ProfileScreen() {
   const [badges, setBadges] = useState<BadgeWithAchievement[]>([]);
   const [prCount, setPrCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  
+
+  // Strength standards state
+  const [strengthStandards, setStrengthStandards] = useState<StrengthStandardData[]>([]);
+  const [userBodyweight, setUserBodyweight] = useState<number | null>(null);
+  const [userGender, setUserGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
+  const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
+  const [strengthLoading, setStrengthLoading] = useState(true);
+
   // Viral sharing state
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareType, setShareType] = useState<ViralShareType>('ARCHETYPE');
@@ -37,6 +62,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     loadUserStats();
+    loadStrengthStandards();
 
     // Subscribe to changes
     const levelSubscription = database.collections
@@ -113,6 +139,131 @@ export default function ProfileScreen() {
     }
   };
 
+  const loadStrengthStandards = async (): Promise<void> => {
+    if (!user) return;
+
+    try {
+      setStrengthLoading(true);
+
+      // Load user settings for gender and weight unit
+      const userSettings = await database.collections
+        .get('user_settings')
+        .query(Q.where('user_id', user.id))
+        .fetch();
+
+      if (userSettings.length > 0) {
+        const settings = userSettings[0] as UserSettings;
+        const gender = settings.gender as 'MALE' | 'FEMALE' | 'OTHER' | null;
+        const unit = settings.weightUnitPreference as 'KG' | 'LBS' | null;
+        setUserGender(gender || 'MALE');
+        setWeightUnit(unit || 'KG');
+      }
+
+      // Load latest bodyweight from body logs (within last 90 days)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      const bodyLogs = await database.collections
+        .get('user_body_logs')
+        .query(
+          Q.where('user_id', user.id),
+          Q.where('deleted_at', null),
+          Q.sortBy('logged_at', Q.desc),
+          Q.take(1)
+        )
+        .fetch();
+
+      if (bodyLogs.length > 0) {
+        const latestLog = bodyLogs[0] as UserBodyLog;
+        if (latestLog.weightKg !== undefined) {
+          setUserBodyweight(latestLog.weightKg);
+        }
+      }
+
+      // Load all exercises to map IDs to names
+      const exercises = await database.collections
+        .get('exercises')
+        .query(Q.where('deleted_at', null))
+        .fetch();
+
+      const exerciseMap = new Map<string, string>();
+      exercises.forEach((ex) => {
+        const exercise = ex as Exercise;
+        exerciseMap.set(exercise.serverId, exercise.name);
+      });
+
+      // Load user's workout sets for strength calculation
+      const workoutSets = await database.collections
+        .get('workout_sets')
+        .query(
+          Q.where('user_id', user.id),
+          Q.where('deleted_at', null),
+          Q.where('weight_kg', Q.gt(0)),
+          Q.where('reps', Q.gt(0))
+        )
+        .fetch();
+
+      // Process sets to find best lifts
+      const setsWithNames = workoutSets
+        .map((set) => {
+          const typedSet = set as WorkoutSet;
+          const exerciseName = exerciseMap.get(typedSet.exerciseId) || 'Unknown';
+          return {
+            exerciseName,
+            weightKg: typedSet.weightKg ?? 0,
+            reps: typedSet.reps ?? 0,
+            createdAt: typedSet.createdAt,
+          };
+        })
+        .filter((set) => set.weightKg > 0 && set.reps > 0);
+
+      const bestLifts = processBestLifts(setsWithNames);
+
+      // Get current bodyweight for calculations (use latest or default)
+      const currentBodyweight = bodyLogs.length > 0
+        ? ((bodyLogs[0] as UserBodyLog).weightKg ?? 75)
+        : 75; // Default to 75kg if no bodyweight logged
+
+      const rawGender = userSettings.length > 0
+        ? (userSettings[0] as UserSettings).gender
+        : null;
+      const currentGender: 'MALE' | 'FEMALE' | 'OTHER' =
+        (rawGender === 'MALE' || rawGender === 'FEMALE' || rawGender === 'OTHER')
+          ? rawGender
+          : 'MALE';
+
+      // Calculate strength ratings for each supported exercise
+      const standards: StrengthStandardData[] = [];
+      const supportedExercises = getSupportedExercises();
+
+      for (const exerciseName of supportedExercises) {
+        const liftData = bestLifts.get(exerciseName);
+        if (liftData) {
+          const rating = calculateStrengthRating(
+            exerciseName,
+            liftData.best1RM,
+            currentBodyweight,
+            currentGender
+          );
+
+          if (rating.hasStandards) {
+            standards.push({
+              exerciseName,
+              userOneRepMax: liftData.best1RM,
+              rating,
+            });
+          }
+        }
+      }
+
+      setStrengthStandards(standards);
+    } catch (error) {
+      console.error('Error loading strength standards:', error);
+    } finally {
+      setStrengthLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     router.replace('/(auth)/login');
@@ -175,6 +326,45 @@ export default function ProfileScreen() {
           What kind of lifter are you?
         </Text>
       </TouchableOpacity>
+
+      {/* Strength Standards Section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Strength Standards</Text>
+        {strengthLoading ? (
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading standards...</Text>
+        ) : !userBodyweight ? (
+          <View style={[styles.emptyBadges, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Add your bodyweight</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+              Log your bodyweight in Settings to see strength comparisons
+            </Text>
+          </View>
+        ) : strengthStandards.length === 0 ? (
+          <View style={[styles.emptyBadges, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No compound lifts logged yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+              Log Bench Press, Squat, or Deadlift to see your strength level
+            </Text>
+          </View>
+        ) : (
+          <View>
+            {strengthStandards.map((standard) => (
+              <StrengthStandardsCard
+                key={standard.exerciseName}
+                exerciseName={standard.exerciseName}
+                userOneRepMax={standard.userOneRepMax}
+                rating={standard.rating}
+                weightUnit={weightUnit}
+                userBodyweight={userBodyweight}
+                gender={userGender}
+              />
+            ))}
+            <Text style={[styles.standardsNote, { color: colors.textMuted }]}>
+              Based on your bodyweight: {userBodyweight?.toFixed(1)}kg | Gender: {userGender.charAt(0) + userGender.slice(1).toLowerCase()}
+            </Text>
+          </View>
+        )}
+      </View>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Achievements</Text>
@@ -370,5 +560,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
+  },
+  standardsNote: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 8,
   },
 });
