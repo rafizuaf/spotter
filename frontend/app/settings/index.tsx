@@ -32,6 +32,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     title: 'Data',
     items: [
+      { label: 'Import & Export', route: '/settings/import-export', description: 'Import from Hevy, export data' },
       { label: 'Body Tracking', route: '/body-tracking', description: 'Weight and measurements' },
     ],
   },
