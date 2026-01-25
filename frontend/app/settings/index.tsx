@@ -19,6 +19,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     title: 'Account',
     items: [
       { label: 'Edit Profile', route: '/settings/profile', description: 'Username, bio, avatar' },
+      { label: 'Subscription', route: '/settings/subscription', description: 'Manage your plan' },
       { label: 'Privacy', route: '/settings/privacy', description: 'Workout visibility' },
     ],
   },

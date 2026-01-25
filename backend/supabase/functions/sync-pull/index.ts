@@ -108,6 +108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         "push_devices",
         "user_training_maxes",
         "user_advanced_program_enrollments",
+        "user_entitlements", // Phase 2F: Monetization (READ-ONLY, pull-only)
       ];
 
       if (userTables.includes(table)) {

@@ -70,5 +70,25 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Phase 2F: Monetization - User Entitlements
+      // SECURITY: This table is READ-ONLY for users (pull-only, no push)
+      toVersion: 7,
+      steps: [
+        createTable({
+          name: 'user_entitlements',
+          columns: [
+            { name: 'server_id', type: 'string', isIndexed: true },
+            { name: 'user_id', type: 'string', isIndexed: true },
+            { name: 'tier', type: 'string' }, // 'FREE' | 'PRO' | 'ELITE'
+            { name: 'is_trial', type: 'boolean' },
+            { name: 'trial_ends_at', type: 'number', isOptional: true },
+            { name: 'valid_until', type: 'number', isOptional: true },
+            { name: 'source', type: 'string' }, // 'STRIPE' | 'REVENUECAT' | 'MANUAL_GIFT' | 'LIFETIME'
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });

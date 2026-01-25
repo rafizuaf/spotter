@@ -41,6 +41,7 @@
     "react-native-view-shot": "4.0.3",
     "react-native-youtube-iframe": "^2.4.1",
     "papaparse": "^5.4.1",
+    "react-native-purchases": "^8.0.0",
     "uuid": "^13.0.0",
     "zustand": "^5.0.9"
   },

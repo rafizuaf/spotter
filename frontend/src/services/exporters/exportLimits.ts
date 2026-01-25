@@ -1,10 +1,14 @@
 /**
  * Phase 2D: Tier resolution and export limits (Free 1x/month CSV, Pro/Elite).
+ * 
+ * SECURITY: Uses user_entitlements table (read-only, server-controlled)
+ * instead of users.subscription_tier (user-editable).
  */
 
 import * as SecureStore from 'expo-secure-store';
 import { Q } from '@nozbe/watermelondb';
-import { usersCollection } from '../../db';
+import { userEntitlementsCollection } from '../../db';
+import type UserEntitlement from '../../db/models/UserEntitlement';
 
 const LAST_EXPORT_KEY = 'spotter_last_export_at';
 
@@ -15,15 +19,30 @@ export interface CanExportResult {
   reason?: string;
 }
 
-/** Resolve tier from users table (server_id = auth user id). Default FREE. */
+/**
+ * Resolve tier from user_entitlements table (secure, server-controlled).
+ * Defaults to FREE if no entitlement found or expired.
+ * 
+ * @param userId - Supabase user ID (server_id)
+ */
 export async function getTier(userId: string): Promise<ExportTier> {
-  const rows = await usersCollection
-    .query(Q.where('server_id', userId))
+  const entitlements = await userEntitlementsCollection
+    .query(Q.where('user_id', userId))
     .fetch();
-  const u = rows[0];
-  const t = u?.subscriptionTier?.toUpperCase();
-  if (t === 'PRO' || t === 'ELITE') return t;
-  return 'FREE';
+
+  const entitlement = entitlements[0] as UserEntitlement | undefined;
+  if (!entitlement) {
+    return 'FREE';
+  }
+
+  // Check expiry
+  const now = new Date();
+  if (entitlement.validUntil && now >= new Date(entitlement.validUntil)) {
+    return 'FREE';
+  }
+
+  const tier = entitlement.tier.toUpperCase();
+  return (tier === 'PRO' || tier === 'ELITE') ? tier : 'FREE';
 }
 
 export async function getLastExportAt(): Promise<string | null> {

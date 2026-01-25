@@ -7,6 +7,7 @@ import {
   setupNotificationListeners,
   registerForPushNotifications,
 } from '../src/services/notifications';
+import { initializePurchases } from '../src/services/purchases';
 import { useTheme } from '../src/hooks/useTheme';
 
 export default function RootLayout() {
@@ -27,6 +28,16 @@ export default function RootLayout() {
   useEffect(() => {
     if (user?.id) {
       registerForPushNotifications(user.id);
+    }
+  }, [user?.id]);
+
+  // Initialize RevenueCat when user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      initializePurchases(user.id).catch((error) => {
+        console.error('Failed to initialize RevenueCat:', error);
+        // Don't block app initialization if RevenueCat fails
+      });
     }
   }, [user?.id]);
 

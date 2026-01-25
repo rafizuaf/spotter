@@ -28,6 +28,7 @@ import type UserTrainingMax from './models/UserTrainingMax';
 import type AdvancedProgram from './models/AdvancedProgram';
 import type AdvancedProgramDay from './models/AdvancedProgramDay';
 import type UserAdvancedProgramEnrollment from './models/UserAdvancedProgramEnrollment';
+import type UserEntitlement from './models/UserEntitlement';
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
@@ -72,5 +73,8 @@ export const userTrainingMaxesCollection = database.get<UserTrainingMax>('user_t
 export const advancedProgramsCollection = database.get<AdvancedProgram>('advanced_programs');
 export const advancedProgramDaysCollection = database.get<AdvancedProgramDay>('advanced_program_days');
 export const userAdvancedProgramEnrollmentsCollection = database.get<UserAdvancedProgramEnrollment>('user_advanced_program_enrollments');
+
+// Monetization (Phase 2F) - SECURITY: Pull-only, no push
+export const userEntitlementsCollection = database.get<UserEntitlement>('user_entitlements');
 
 export default database;

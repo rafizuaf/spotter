@@ -26,6 +26,7 @@ import UserTrainingMax from './UserTrainingMax';
 import AdvancedProgram from './AdvancedProgram';
 import AdvancedProgramDay from './AdvancedProgramDay';
 import UserAdvancedProgramEnrollment from './UserAdvancedProgramEnrollment';
+import UserEntitlement from './UserEntitlement';
 
 export {
   User,
@@ -56,6 +57,7 @@ export {
   AdvancedProgram,
   AdvancedProgramDay,
   UserAdvancedProgramEnrollment,
+  UserEntitlement,
 };
 
 export const modelClasses = [
@@ -87,4 +89,5 @@ export const modelClasses = [
   AdvancedProgram,
   AdvancedProgramDay,
   UserAdvancedProgramEnrollment,
+  UserEntitlement,
 ];

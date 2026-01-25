@@ -32,6 +32,7 @@ const SYNC_TABLES = [
   'advanced_programs', // Phase 2E: 5/3/1 etc. (read-only)
   'advanced_program_days', // Phase 2E (read-only)
   'user_advanced_program_enrollments', // Phase 2E
+  'user_entitlements', // Phase 2F: Monetization (READ-ONLY, pull-only)
 ];
 
 interface SyncPullResponse {

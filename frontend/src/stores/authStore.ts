@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase, signIn, signUp, signOut, getSession } from '../services/supabase';
+import { initializePurchases, resetPurchases } from '../services/purchases';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthState {
@@ -70,6 +71,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { user, session } = await signIn(email, password);
 
+      // Initialize RevenueCat after successful login
+      if (user?.id) {
+        initializePurchases(user.id).catch((error) => {
+          console.error('Failed to initialize RevenueCat after login:', error);
+          // Don't block login if RevenueCat fails
+        });
+      }
+
       set({
         user,
         session,
@@ -91,6 +100,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { user, session } = await signUp(email, password, username);
 
+      // Initialize RevenueCat after successful registration
+      if (user?.id) {
+        initializePurchases(user.id).catch((error) => {
+          console.error('Failed to initialize RevenueCat after registration:', error);
+          // Don't block registration if RevenueCat fails
+        });
+      }
+
       set({
         user,
         session,
@@ -109,6 +126,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     try {
       set({ isLoading: true, error: null });
+
+      // Reset RevenueCat before signing out
+      resetPurchases().catch((error) => {
+        console.error('Failed to reset RevenueCat on logout:', error);
+        // Don't block logout if RevenueCat fails
+      });
 
       await signOut();
 

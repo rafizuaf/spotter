@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 6, // Phase 2E: advanced programs
+  version: 7, // Phase 2F: monetization + user_entitlements
   tables: [
     // ============================================
     // Users & Settings
@@ -293,6 +293,25 @@ export const schema = appSchema({
         { name: 'total_xp', type: 'number' },
         { name: 'level', type: 'number' },
         { name: 'xp_to_next_level', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    // ============================================
+    // Subscription Entitlements (Phase 2F)
+    // SECURITY: This table is READ-ONLY on the server.
+    // Sync: Pull-only (not in push allowed tables).
+    // ============================================
+    tableSchema({
+      name: 'user_entitlements',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'tier', type: 'string' }, // 'FREE' | 'PRO' | 'ELITE'
+        { name: 'is_trial', type: 'boolean' },
+        { name: 'trial_ends_at', type: 'number', isOptional: true },
+        { name: 'valid_until', type: 'number', isOptional: true },
+        { name: 'source', type: 'string' }, // 'STRIPE' | 'REVENUECAT' | 'MANUAL_GIFT' | 'LIFETIME'
         { name: 'updated_at', type: 'number' },
       ],
     }),
