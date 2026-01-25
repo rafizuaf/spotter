@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 4, // Updated for Rest Timer default settings
+  version: 6, // Phase 2E: advanced programs
   tables: [
     // ============================================
     // Users & Settings
@@ -408,6 +408,68 @@ export const schema = appSchema({
         { name: 'program_id', type: 'string', isIndexed: true },
         { name: 'current_day_index', type: 'number' },
         { name: 'days_completed', type: 'number' },
+        { name: 'started_at', type: 'number' },
+        { name: 'completed_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'user_training_maxes',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'exercise_id', type: 'string', isIndexed: true },
+        { name: 'training_max_kg', type: 'number' },
+        { name: 'one_rep_max_kg', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'advanced_programs',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'code', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'duration_weeks', type: 'number' },
+        { name: 'workouts_per_week', type: 'number' },
+        { name: 'is_active', type: 'boolean' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'advanced_program_days',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'program_id', type: 'string', isIndexed: true },
+        { name: 'week_number', type: 'number' },
+        { name: 'day_number', type: 'number' },
+        { name: 'day_title', type: 'string' },
+        { name: 'exercises', type: 'string' },
+        { name: 'order_index', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'user_advanced_program_enrollments',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'program_id', type: 'string', isIndexed: true },
+        { name: 'current_week', type: 'number' },
+        { name: 'current_day', type: 'number' },
         { name: 'started_at', type: 'number' },
         { name: 'completed_at', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },

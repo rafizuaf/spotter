@@ -17,6 +17,8 @@ import { ViralShareModal } from '../../src/components/viral';
 import type { ViralShareType } from '../../src/components/viral';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useTrainingMaxes } from '../../src/hooks/useTrainingMaxes';
+import { getTier } from '../../src/services/exporters/exportLimits';
 import { userSettingsCollection } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import type UserSettings from '../../src/db/models/UserSettings';
@@ -52,6 +54,14 @@ export default function WorkoutScreen() {
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
   const [userGender, setUserGender] = useState<Gender>('OTHER');
   const [quickSelectEnabled, setQuickSelectEnabled] = useState(true);
+  const [tier, setTier] = useState<'FREE' | 'PRO' | 'ELITE'>('FREE');
+
+  const { getTmForExercise, loading: tmLoading } = useTrainingMaxes(user?.id);
+
+  useEffect(() => {
+    if (!user) return;
+    getTier(user.id).then(setTier);
+  }, [user]);
 
   // Viral sharing state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -486,6 +496,8 @@ export default function WorkoutScreen() {
                         onWeightChange={(value) => updateSet(exercise.id, set.id, { weightKg: value })}
                         onRepsChange={(value) => updateSet(exercise.id, set.id, { reps: value })}
                         onComplete={() => handleQuickCompleteSet(exercise.id, set.id, set.weightKg, set.reps)}
+                        canUsePercentCalculator={!tmLoading && tier === 'ELITE'}
+                        tmKg={getTmForExercise(set.exerciseId)?.trainingMaxKg ?? null}
                       />
                     );
                   })

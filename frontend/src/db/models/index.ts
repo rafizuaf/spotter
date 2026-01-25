@@ -22,6 +22,10 @@ import BeginnerProgram from './BeginnerProgram';
 import BeginnerProgramDay from './BeginnerProgramDay';
 import UserProgramEnrollment from './UserProgramEnrollment';
 import UserProgramDayProgress from './UserProgramDayProgress';
+import UserTrainingMax from './UserTrainingMax';
+import AdvancedProgram from './AdvancedProgram';
+import AdvancedProgramDay from './AdvancedProgramDay';
+import UserAdvancedProgramEnrollment from './UserAdvancedProgramEnrollment';
 
 export {
   User,
@@ -48,6 +52,10 @@ export {
   BeginnerProgramDay,
   UserProgramEnrollment,
   UserProgramDayProgress,
+  UserTrainingMax,
+  AdvancedProgram,
+  AdvancedProgramDay,
+  UserAdvancedProgramEnrollment,
 };
 
 export const modelClasses = [
@@ -75,4 +83,8 @@ export const modelClasses = [
   BeginnerProgramDay,
   UserProgramEnrollment,
   UserProgramDayProgress,
+  UserTrainingMax,
+  AdvancedProgram,
+  AdvancedProgramDay,
+  UserAdvancedProgramEnrollment,
 ];

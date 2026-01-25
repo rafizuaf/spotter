@@ -1,8 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
 import { workoutsCollection, workoutSetsCollection } from '../../src/db';
 import { useAuthStore } from '../../src/stores/authStore';
+import { getTier } from '../../src/services/exporters/exportLimits';
+import {
+  getWeeklyVolumeByMuscle,
+  getLastWeekStarts,
+  getWeekStartMonday,
+  type MuscleVolume,
+} from '../../src/services/weeklyVolume';
 import type Workout from '../../src/db/models/Workout';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -23,6 +30,38 @@ export default function HistoryScreen() {
   const [workouts, setWorkouts] = useState<WorkoutWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tier, setTier] = useState<'FREE' | 'PRO' | 'ELITE'>('FREE');
+  const [volumeByMuscle, setVolumeByMuscle] = useState<MuscleVolume[]>([]);
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null);
+  const [volumeLoading, setVolumeLoading] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) getTier(user.id).then(setTier);
+  }, [user?.id]);
+
+  const loadVolume = useCallback(async () => {
+    if (!user?.id || (tier !== 'PRO' && tier !== 'ELITE')) return;
+    const week = selectedWeekStart ?? getWeekStartMonday(new Date());
+    setVolumeLoading(true);
+    try {
+      const data = await getWeeklyVolumeByMuscle(user.id, week);
+      setVolumeByMuscle(data);
+    } catch (e) {
+      console.error('Weekly volume load error:', e);
+    } finally {
+      setVolumeLoading(false);
+    }
+  }, [user?.id, tier, selectedWeekStart]);
+
+  useEffect(() => {
+    if (tier === 'PRO' || tier === 'ELITE') {
+      if (selectedWeekStart == null) setSelectedWeekStart(getWeekStartMonday(new Date()));
+    }
+  }, [tier]);
+
+  useEffect(() => {
+    loadVolume();
+  }, [loadVolume]);
 
   useEffect(() => {
     loadWorkouts();
@@ -128,6 +167,68 @@ export default function HistoryScreen() {
     loadWorkouts();
   };
 
+  const weekStarts = getLastWeekStarts(4);
+  const showVolume = tier === 'PRO' || tier === 'ELITE';
+
+  const formatWeekLabel = (w: Date) => {
+    const end = new Date(w);
+    end.setDate(end.getDate() + 6);
+    return `${w.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  };
+
+  const renderVolumeHeader = () => {
+    if (!showVolume) return null;
+    const week = selectedWeekStart ?? getWeekStartMonday(new Date());
+    return (
+      <View style={[styles.volumeSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.volumeTitle, { color: colors.textPrimary }]}>Weekly volume by muscle</Text>
+        <View style={styles.weekSelector}>
+          {weekStarts.map((w) => {
+            const isSelected = selectedWeekStart ? w.getTime() === selectedWeekStart.getTime() : w.getTime() === week.getTime();
+            return (
+              <TouchableOpacity
+                key={w.getTime()}
+                style={[
+                  styles.weekButton,
+                  { backgroundColor: isSelected ? colors.primary : colors.surfaceElevated, borderColor: colors.border },
+                ]}
+                onPress={() => {
+                  setSelectedWeekStart(w);
+                }}
+              >
+                <Text style={[styles.weekButtonText, { color: isSelected ? colors.background : colors.textPrimary }]} numberOfLines={1}>
+                  {formatWeekLabel(w)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {volumeLoading ? (
+          <Text style={[styles.volumeMuted, { color: colors.textMuted }]}>Loading…</Text>
+        ) : volumeByMuscle.length === 0 ? (
+          <Text style={[styles.volumeMuted, { color: colors.textMuted }]}>No volume this week</Text>
+        ) : (
+          <View style={styles.volumeList}>
+            {volumeByMuscle.map(({ muscleGroup, volumeKg }, idx) => (
+              <View
+                key={muscleGroup}
+                style={[
+                  styles.volumeRow,
+                  idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.volumeMuscle, { color: colors.textPrimary }]}>{muscleGroup}</Text>
+                <Text style={[styles.volumeKg, { color: colors.textSecondary }]}>
+                  {volumeKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderWorkout = ({ item }: { item: WorkoutWithStats }) => (
     <TouchableOpacity style={[styles.workoutCard, { backgroundColor: colors.surface }]}>
       <View style={styles.workoutHeader}>
@@ -186,6 +287,7 @@ export default function HistoryScreen() {
         data={workouts}
         renderItem={renderWorkout}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={renderVolumeHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -266,5 +368,49 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     marginTop: 4,
+  },
+  volumeSection: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  volumeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  weekSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  weekButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  weekButtonText: {
+    fontSize: 13,
+  },
+  volumeMuted: {
+    fontSize: 14,
+  },
+  volumeList: {
+    marginTop: 4,
+  },
+  volumeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  volumeMuscle: {
+    fontSize: 15,
+  },
+  volumeKg: {
+    fontSize: 14,
   },
 });

@@ -106,6 +106,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         "user_badges",
         "notifications",
         "push_devices",
+        "user_training_maxes",
+        "user_advanced_program_enrollments",
       ];
 
       if (userTables.includes(table)) {

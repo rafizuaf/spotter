@@ -17,15 +17,21 @@ import {
   beginnerProgramDaysCollection,
   userProgramEnrollmentsCollection,
   userProgramDayProgressCollection,
+  advancedProgramsCollection,
+  userAdvancedProgramEnrollmentsCollection,
 } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import { supabase } from '../../src/services/supabase';
+import { getTier } from '../../src/services/exporters/exportLimits';
+import { enrollAdvancedProgram } from '../../src/services/advancedPrograms';
+import { syncDatabase } from '../../src/db/sync';
 import ProgramProgressBar from '../../src/components/ProgramProgressBar';
 import ProgramDayCard, { DayStatus } from '../../src/components/ProgramDayCard';
 import type BeginnerProgram from '../../src/db/models/BeginnerProgram';
 import type BeginnerProgramDay from '../../src/db/models/BeginnerProgramDay';
 import type UserProgramEnrollment from '../../src/db/models/UserProgramEnrollment';
 import type UserProgramDayProgress from '../../src/db/models/UserProgramDayProgress';
+import type UserAdvancedProgramEnrollment from '../../src/db/models/UserAdvancedProgramEnrollment';
 
 const FIRST_30_DAYS_CODE = 'FIRST_30_DAYS';
 
@@ -41,9 +47,13 @@ export default function ProgramScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const [enrolling531, setEnrolling531] = useState(false);
   const [program, setProgram] = useState<BeginnerProgram | null>(null);
   const [enrollment, setEnrollment] = useState<UserProgramEnrollment | null>(null);
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([]);
+  const [tier, setTier] = useState<'FREE' | 'PRO' | 'ELITE'>('FREE');
+  const [program531, setProgram531] = useState<{ id: string; serverId: string } | null>(null);
+  const [enrollment531, setEnrollment531] = useState<UserAdvancedProgramEnrollment | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -78,6 +88,25 @@ export default function ProgramScreen() {
       if (enrollments.length === 0) {
         setEnrollment(null);
         setDaysWithProgress([]);
+        getTier(user.id).then(setTier);
+        const p531 = await advancedProgramsCollection
+          .query(
+            Q.where('code', 'FIVE_THREE_ONE'),
+            Q.where('is_active', true),
+            Q.where('deleted_at', null)
+          )
+          .fetch();
+        if (p531.length > 0) {
+          setProgram531({ id: p531[0].id, serverId: (p531[0] as { serverId: string }).serverId });
+          const e531 = await userAdvancedProgramEnrollmentsCollection
+            .query(
+              Q.where('user_id', user.id),
+              Q.where('program_id', (p531[0] as { serverId: string }).serverId),
+              Q.where('deleted_at', null)
+            )
+            .fetch();
+          setEnrollment531(e531.length > 0 ? (e531[0] as UserAdvancedProgramEnrollment) : null);
+        }
         setLoading(false);
         return;
       }
@@ -132,6 +161,28 @@ export default function ProgramScreen() {
       });
 
       setDaysWithProgress(combined);
+
+      if (user) {
+        getTier(user.id).then(setTier);
+        const p531 = await advancedProgramsCollection
+          .query(
+            Q.where('code', 'FIVE_THREE_ONE'),
+            Q.where('is_active', true),
+            Q.where('deleted_at', null)
+          )
+          .fetch();
+        if (p531.length > 0) {
+          setProgram531({ id: p531[0].id, serverId: (p531[0] as { serverId: string }).serverId });
+          const e531 = await userAdvancedProgramEnrollmentsCollection
+            .query(
+              Q.where('user_id', user.id),
+              Q.where('program_id', (p531[0] as { serverId: string }).serverId),
+              Q.where('deleted_at', null)
+            )
+            .fetch();
+          setEnrollment531(e531.length > 0 ? (e531[0] as UserAdvancedProgramEnrollment) : null);
+        }
+      }
     } catch (error) {
       console.error('Error loading program data:', error);
     } finally {
@@ -175,6 +226,21 @@ export default function ProgramScreen() {
   const handleDayPress = (dayIndex: number) => {
     if (!enrollment) return;
     router.push(`/program/${dayIndex}` as never);
+  };
+
+  const handleEnroll531 = async () => {
+    if (!user || !program531 || tier !== 'ELITE') return;
+    setEnrolling531(true);
+    try {
+      await enrollAdvancedProgram(user.id, program531.serverId);
+      await syncDatabase();
+      await loadData();
+      router.push('/program/advanced/1' as never);
+    } catch (e) {
+      console.error('5/3/1 enroll error:', e);
+    } finally {
+      setEnrolling531(false);
+    }
   };
 
   if (loading) {
@@ -232,6 +298,50 @@ export default function ProgramScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {program531 && (
+            <View style={[styles.card531, { marginTop: 24, width: '100%' }]}>
+              <Text style={[styles.weekTitle, { color: colors.textSecondary }]}>5/3/1</Text>
+              {tier !== 'ELITE' ? (
+                <Text style={[styles.card531Text, { color: colors.textMuted }]}>
+                  Elite only. Upgrade to use percentage-based programs.
+                </Text>
+              ) : !enrollment531 ? (
+                <>
+                  <Text style={[styles.card531Title, { color: colors.textPrimary }]}>5/3/1</Text>
+                  <Text style={[styles.card531Text, { color: colors.textSecondary }]}>
+                    3 weeks, 4 days/week. Set your Training Maxes first.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.enroll531Btn, { backgroundColor: colors.primary }]}
+                    onPress={handleEnroll531}
+                    disabled={enrolling531}
+                  >
+                    {enrolling531 ? (
+                      <ActivityIndicator size="small" color={colors.background} />
+                    ) : (
+                      <Text style={[styles.enroll531BtnText, { color: colors.background }]}>Enroll</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.card531Title, { color: colors.textPrimary }]}>
+                    Week {enrollment531.currentWeek}, Day {enrollment531.currentDay}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.enroll531Btn, { backgroundColor: colors.primary }]}
+                    onPress={() => {
+                      const dayIndex = (enrollment531.currentWeek - 1) * 4 + enrollment531.currentDay;
+                      router.push(`/program/advanced/${Math.min(dayIndex, 12)}` as never);
+                    }}
+                  >
+                    <Text style={[styles.enroll531BtnText, { color: colors.background }]}>Continue</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
     );
@@ -324,6 +434,53 @@ export default function ProgramScreen() {
           </View>
         );
       })}
+
+      {/* 5/3/1 (Elite) */}
+      {program531 && (
+        <View style={[styles.weekSection, { marginTop: 8 }]}>
+          <Text style={[styles.weekTitle, { color: colors.textSecondary }]}>5/3/1</Text>
+          <View style={[styles.card531, { backgroundColor: colors.surface }]}>
+            {tier !== 'ELITE' ? (
+              <Text style={[styles.card531Text, { color: colors.textMuted }]}>
+                Elite only. Upgrade to use percentage-based programs.
+              </Text>
+            ) : !enrollment531 ? (
+              <>
+                <Text style={[styles.card531Title, { color: colors.textPrimary }]}>5/3/1</Text>
+                <Text style={[styles.card531Text, { color: colors.textSecondary }]}>
+                  3 weeks, 4 days/week. Set your Training Maxes first.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.enroll531Btn, { backgroundColor: colors.primary }]}
+                  onPress={handleEnroll531}
+                  disabled={enrolling531}
+                >
+                  {enrolling531 ? (
+                    <ActivityIndicator size="small" color={colors.background} />
+                  ) : (
+                    <Text style={[styles.enroll531BtnText, { color: colors.background }]}>Enroll</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.card531Title, { color: colors.textPrimary }]}>
+                  Week {enrollment531.currentWeek}, Day {enrollment531.currentDay}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.enroll531Btn, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    const dayIndex = (enrollment531.currentWeek - 1) * 4 + enrollment531.currentDay;
+                    router.push(`/program/advanced/${Math.min(dayIndex, 12)}` as never);
+                  }}
+                >
+                  <Text style={[styles.enroll531BtnText, { color: colors.background }]}>Continue</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -461,6 +618,30 @@ const styles = StyleSheet.create({
   },
   viewCompletionText: {
     fontSize: 16,
+    fontWeight: '600',
+  },
+  card531: {
+    borderRadius: 12,
+    padding: 16,
+  },
+  card531Title: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  card531Text: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  enroll531Btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  enroll531BtnText: {
+    fontSize: 15,
     fontWeight: '600',
   },
 });

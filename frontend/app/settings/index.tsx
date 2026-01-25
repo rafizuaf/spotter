@@ -34,6 +34,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     items: [
       { label: 'Import & Export', route: '/settings/import-export', description: 'Import from Hevy, export data' },
       { label: 'Body Tracking', route: '/body-tracking', description: 'Weight and measurements' },
+      { label: 'Training Max', route: '/settings/training-max', description: 'Set TM per exercise (Elite)' },
     ],
   },
   {

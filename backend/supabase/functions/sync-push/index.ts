@@ -89,6 +89,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       "user_settings",
       "exercises", // Only custom exercises
       "push_devices",
+      "user_training_maxes",
+      "user_advanced_program_enrollments",
     ];
 
     // Process each table's changes
@@ -227,6 +229,8 @@ function prepareRecord(
     "workouts",
     "user_body_logs",
     "push_devices",
+    "user_training_maxes",
+    "user_advanced_program_enrollments",
   ];
 
   const result: Record<string, unknown> = {

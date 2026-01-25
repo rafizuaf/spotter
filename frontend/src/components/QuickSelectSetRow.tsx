@@ -17,6 +17,7 @@ import {
   getDefaultReps,
 } from '../hooks/useExerciseHistory';
 import PlateCalculatorModal from './PlateCalculatorModal';
+import PercentageCalculatorModal from './PercentageCalculatorModal';
 import type { Colors } from '../utils/colors';
 import type { Gender } from '../constants/startingWeights';
 
@@ -59,6 +60,10 @@ interface QuickSelectSetRowProps {
   onRpeChange?: (rpe: string) => void;
   /** Callback when set is marked complete */
   onComplete: () => void;
+  /** Phase 2E: Elite + TM set → show % calculator (optional) */
+  canUsePercentCalculator?: boolean;
+  /** Phase 2E: Training max kg for this exercise (optional) */
+  tmKg?: number | null;
 }
 
 /**
@@ -94,6 +99,8 @@ export default function QuickSelectSetRow({
   onRepsChange,
   onRpeChange,
   onComplete,
+  canUsePercentCalculator,
+  tmKg,
 }: QuickSelectSetRowProps) {
   const colors = useTheme();
   const styles = createStyles(colors);
@@ -102,6 +109,7 @@ export default function QuickSelectSetRow({
   const [showManualWeight, setShowManualWeight] = useState(false);
   const [showManualReps, setShowManualReps] = useState(false);
   const [showPlateCalculator, setShowPlateCalculator] = useState(false);
+  const [showPercentCalculator, setShowPercentCalculator] = useState(false);
 
   // Refs for manual input
   const weightInputRef = useRef<TextInput>(null);
@@ -394,6 +402,22 @@ export default function QuickSelectSetRow({
             >
               <Ionicons name="barbell-outline" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
+
+            {/* % of TM button (Elite only, when TM set) */}
+            {canUsePercentCalculator && tmKg != null && tmKg > 0 && (
+              <TouchableOpacity
+                style={styles.plateCalcButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  setShowPercentCalculator(true);
+                }}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Open percentage of TM calculator"
+              >
+                <Text style={[styles.percentButtonText, { color: colors.primary }]}>%</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -530,6 +554,20 @@ export default function QuickSelectSetRow({
           setShowPlateCalculator(false);
         }}
       />
+
+      {/* % of TM Modal (Elite only) */}
+      {canUsePercentCalculator && tmKg != null && tmKg > 0 && (
+        <PercentageCalculatorModal
+          visible={showPercentCalculator}
+          tmKg={tmKg}
+          weightUnit={weightUnit}
+          onClose={() => setShowPercentCalculator(false)}
+          onConfirm={(weightKg) => {
+            onWeightChange(weightKg.toFixed(1));
+            setShowPercentCalculator(false);
+          }}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -665,6 +703,10 @@ const createStyles = (colors: Colors) =>
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
+    },
+    percentButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
     },
     manualInputRow: {
       flexDirection: 'row',

@@ -3,6 +3,7 @@ import type { Collection } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { schema } from './schema';
 import { modelClasses } from './models';
+import migrations from './migrations';
 import type User from './models/User';
 import type UserSettings from './models/UserSettings';
 import type EquipmentBase from './models/EquipmentBase';
@@ -23,12 +24,15 @@ import type BeginnerProgram from './models/BeginnerProgram';
 import type BeginnerProgramDay from './models/BeginnerProgramDay';
 import type UserProgramEnrollment from './models/UserProgramEnrollment';
 import type UserProgramDayProgress from './models/UserProgramDayProgress';
+import type UserTrainingMax from './models/UserTrainingMax';
+import type AdvancedProgram from './models/AdvancedProgram';
+import type AdvancedProgramDay from './models/AdvancedProgramDay';
+import type UserAdvancedProgramEnrollment from './models/UserAdvancedProgramEnrollment';
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
   schema,
-  // Optional: migrations for schema changes
-  // migrations,
+  migrations,
   jsi: true, // Enable JSI for better performance (React Native)
   onSetUpError: (error) => {
     console.error('Database setup error:', error);
@@ -64,5 +68,9 @@ export const beginnerProgramsCollection = database.get<BeginnerProgram>('beginne
 export const beginnerProgramDaysCollection = database.get<BeginnerProgramDay>('beginner_program_days');
 export const userProgramEnrollmentsCollection = database.get<UserProgramEnrollment>('user_program_enrollments');
 export const userProgramDayProgressCollection = database.get<UserProgramDayProgress>('user_program_day_progress');
+export const userTrainingMaxesCollection = database.get<UserTrainingMax>('user_training_maxes');
+export const advancedProgramsCollection = database.get<AdvancedProgram>('advanced_programs');
+export const advancedProgramDaysCollection = database.get<AdvancedProgramDay>('advanced_program_days');
+export const userAdvancedProgramEnrollmentsCollection = database.get<UserAdvancedProgramEnrollment>('user_advanced_program_enrollments');
 
 export default database;

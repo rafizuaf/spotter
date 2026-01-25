@@ -28,6 +28,10 @@ const SYNC_TABLES = [
   'beginner_program_days', // Read-only from backend (First 30 Days)
   'user_program_enrollments', // User program progress (First 30 Days)
   'user_program_day_progress', // User daily progress (First 30 Days)
+  'user_training_maxes', // Phase 2E: Training max per exercise
+  'advanced_programs', // Phase 2E: 5/3/1 etc. (read-only)
+  'advanced_program_days', // Phase 2E (read-only)
+  'user_advanced_program_enrollments', // Phase 2E
 ];
 
 interface SyncPullResponse {
