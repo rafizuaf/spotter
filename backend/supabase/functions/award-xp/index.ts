@@ -49,6 +49,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // SECURITY: Authenticate user first
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create user client for authentication
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Create Supabase client with secret key (bypasses RLS for admin operations)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -62,6 +96,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing userId or setIds" }),
         {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // SECURITY: Verify userId matches authenticated user
+    if (userId !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
+        {
+          status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -81,17 +126,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get workout ID from sets (needed for timezone lookup)
-    const { data: sets } = await supabaseAdmin
+    // SECURITY: Get sets and verify they belong to user's workouts
+    const { data: sets, error: setsError } = await supabaseAdmin
       .from("workout_sets")
-      .select("id, workout_id")
-      .in("id", setIds);
+      .select("id, workout_id, workouts!inner(user_id)")
+      .in("id", setIds)
+      .eq("workouts.user_id", user.id);
+
+    if (setsError) {
+      console.error("Error fetching sets:", setsError);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch sets" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (!sets || sets.length === 0) {
-      return new Response(JSON.stringify({ error: "No valid sets found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ 
+          error: "No valid sets found or sets do not belong to you",
+          code: "NOT_FOUND"
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     const typedSets = sets as WorkoutSet[];

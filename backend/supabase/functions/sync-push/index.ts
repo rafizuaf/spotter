@@ -79,6 +79,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Parse request body
     const { changes }: PushRequest = await req.json();
 
+    // SECURITY: Get user's subscription tier for limit enforcement
+    const { data: entitlement } = await supabaseAdmin
+      .from("user_entitlements")
+      .select("tier, valid_until")
+      .eq("user_id", user.id)
+      .single();
+
+    const tier = entitlement?.tier ?? "FREE";
+    const isExpired =
+      entitlement?.valid_until &&
+      new Date(entitlement.valid_until) < new Date();
+    const effectiveTier = isExpired ? "FREE" : tier;
+
     // Tables that the user can modify
     const allowedTables = [
       "routines",
@@ -92,6 +105,75 @@ Deno.serve(async (req: Request): Promise<Response> => {
       "user_training_maxes",
       "user_advanced_program_enrollments",
     ];
+
+    // SECURITY: Enforce routine limits before processing
+    if (changes.routines?.created && changes.routines.created.length > 0) {
+      const { count: currentCount } = await supabaseAdmin
+        .from("routines")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .is("deleted_at", null);
+
+      const maxRoutines =
+        effectiveTier === "FREE"
+          ? 3
+          : effectiveTier === "PRO"
+          ? 10
+          : Infinity;
+
+      if ((currentCount ?? 0) + changes.routines.created.length > maxRoutines) {
+        return new Response(
+          JSON.stringify({
+            error: `Routine limit exceeded. ${effectiveTier} tier allows ${maxRoutines} routines.`,
+            code: "LIMIT_EXCEEDED",
+            limit: maxRoutines,
+            current: currentCount ?? 0,
+            attempted: changes.routines.created.length,
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
+    // SECURITY: Enforce custom exercise limits before processing
+    if (changes.exercises?.created && changes.exercises.created.length > 0) {
+      // Only count custom exercises
+      const { count: currentCustomCount } = await supabaseAdmin
+        .from("exercises")
+        .select("*", { count: "exact", head: true })
+        .eq("created_by_user_id", user.id)
+        .eq("is_custom", true)
+        .is("deleted_at", null);
+
+      const maxCustomExercises =
+        effectiveTier === "FREE"
+          ? 7
+          : effectiveTier === "PRO"
+          ? 50
+          : Infinity;
+
+      if (
+        (currentCustomCount ?? 0) + changes.exercises.created.length >
+        maxCustomExercises
+      ) {
+        return new Response(
+          JSON.stringify({
+            error: `Custom exercise limit exceeded. ${effectiveTier} tier allows ${maxCustomExercises} custom exercises.`,
+            code: "LIMIT_EXCEEDED",
+            limit: maxCustomExercises,
+            current: currentCustomCount ?? 0,
+            attempted: changes.exercises.created.length,
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
 
     // Process each table's changes
     for (const [table, tableChanges] of Object.entries(changes)) {
@@ -238,6 +320,43 @@ function prepareRecord(
     id,
     updated_at: new Date().toISOString(),
   };
+
+  // SECURITY: Validate workout timestamps (prevent future dates, ensure logical ordering)
+  if (table === "workouts") {
+    const serverNow = new Date().toISOString();
+    const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    // Validate started_at is not in the future (allow 5min grace for clock drift)
+    if (result.started_at) {
+      const startedAt = new Date(result.started_at as string);
+      const now = new Date();
+      const fiveMinutesFromNowDate = new Date(now.getTime() + 5 * 60 * 1000);
+
+      if (startedAt > fiveMinutesFromNowDate) {
+        // Client timestamp is in the future - use server time
+        console.warn(
+          `Workout started_at is in the future (${result.started_at}), using server time`
+        );
+        result.started_at = serverNow;
+      }
+    }
+
+    // Validate ended_at is not before started_at and not in the future
+    if (result.ended_at && result.started_at) {
+      const endedAt = new Date(result.ended_at as string);
+      const startedAt = new Date(result.started_at as string);
+      const now = new Date();
+      const fiveMinutesFromNowDate = new Date(now.getTime() + 5 * 60 * 1000);
+
+      if (endedAt < startedAt || endedAt > fiveMinutesFromNowDate) {
+        // Invalid timestamp - use server time
+        console.warn(
+          `Workout ended_at is invalid (before started_at or in future), using server time`
+        );
+        result.ended_at = serverNow;
+      }
+    }
+  }
 
   if (userOwnedTables.includes(table)) {
     result.user_id = userId;

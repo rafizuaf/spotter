@@ -55,6 +55,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // SECURITY: Authenticate user first
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create user client for authentication
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -73,18 +107,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // SECURITY: Verify userId matches authenticated user
+    if (userId !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Get workout details
     const { data: workout, error: workoutError } = await supabaseAdmin
       .from("workouts")
-      .select("id, started_at, ended_at, local_timezone")
+      .select("id, user_id, started_at, ended_at, local_timezone")
       .eq("id", workoutId)
       .single();
 
     if (workoutError || !workout) {
-      return new Response(JSON.stringify({ error: "Workout not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Workout not found", code: "NOT_FOUND" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // SECURITY: Verify workout belongs to authenticated user
+    if (workout.user_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Use workout's timezone or fallback to provided/UTC

@@ -88,6 +88,33 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
     );
 
+    // SECURITY: Verify workout belongs to authenticated user
+    const { data: workout, error: workoutError } = await supabaseAdmin
+      .from("workouts")
+      .select("user_id")
+      .eq("id", workoutId)
+      .single();
+
+    if (workoutError || !workout) {
+      return new Response(
+        JSON.stringify({ error: "Workout not found", code: "NOT_FOUND" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (workout.user_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Get all sets from this workout
     const { data: workoutSets, error: setsError } = await supabaseAdmin
       .from("workout_sets")

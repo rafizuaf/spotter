@@ -3,6 +3,7 @@ import { database, workoutsCollection, workoutSetsCollection } from '../db';
 import { syncDatabase } from '../db/sync';
 import { supabase } from '../services/supabase';
 import { v4 as uuid } from 'uuid';
+import { Q } from '@nozbe/watermelondb';
 import type Workout from '../db/models/Workout';
 import type WorkoutSetModel from '../db/models/WorkoutSet';
 
@@ -315,14 +316,42 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       let badgesUnlocked = 0;
 
       // Call gamification functions
+      // NOTE: award-xp is automatically called by sync-push when sets are synced
+      // This direct call is for immediate feedback, but sync-push handles the actual XP award
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          // 1. Award XP
-          const { data: xpData } = await supabase.functions.invoke('award-xp', {
-            body: { workoutId: workoutServerId },
-          });
-          xpAwarded = xpData?.xpAwarded || 0;
+          // 1. Award XP - Get set IDs from the completed workout
+          // Wait a moment for sync to complete, then get synced set server IDs
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          
+          // Get the workout record to access its ID
+          const workoutRecords = await workoutsCollection
+            .query(Q.where('server_id', workoutServerId))
+            .fetch();
+          
+          if (workoutRecords.length > 0) {
+            const workoutRecord = workoutRecords[0] as Workout;
+            
+            const workoutSets = await database.collections
+              .get('workout_sets')
+              .query(
+                Q.where('workout_id', workoutRecord.id),
+                Q.where('deleted_at', null)
+              )
+              .fetch();
+
+            const setServerIds = workoutSets
+              .map((set) => (set as WorkoutSetModel).serverId)
+              .filter((id: string | undefined): id is string => !!id);
+
+            if (setServerIds.length > 0) {
+              const { data: xpData } = await supabase.functions.invoke('award-xp', {
+                body: { userId: user.id, setIds: setServerIds },
+              });
+              xpAwarded = xpData?.xpAwarded || 0;
+            }
+          }
 
           // 2. Calculate level
           const { data: levelData } = await supabase.functions.invoke('calculate-level', {

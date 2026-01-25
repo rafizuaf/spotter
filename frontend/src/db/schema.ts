@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 7, // Phase 2F: monetization + user_entitlements
+  version: 8, // Phase 2F: removed legacy subscription fields (migrated to user_entitlements)
   tables: [
     // ============================================
     // Users & Settings
@@ -15,9 +15,6 @@ export const schema = appSchema({
         { name: 'bio', type: 'string', isOptional: true },
         { name: 'website_link', type: 'string', isOptional: true },
         { name: 'account_status', type: 'string' },
-        { name: 'subscription_tier', type: 'string' },
-        { name: 'is_trial_period', type: 'boolean' },
-        { name: 'subscription_expires_at', type: 'number', isOptional: true },
         { name: 'terms_accepted_at', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },

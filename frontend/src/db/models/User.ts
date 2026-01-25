@@ -10,9 +10,6 @@ export default class User extends Model {
   @text('bio') bio?: string;
   @text('website_link') websiteLink?: string;
   @text('account_status') accountStatus!: string;
-  @text('subscription_tier') subscriptionTier!: string;
-  @field('is_trial_period') isTrialPeriod!: boolean;
-  @date('subscription_expires_at') subscriptionExpiresAt?: Date;
   @date('terms_accepted_at') termsAcceptedAt?: Date;
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

@@ -1,4 +1,4 @@
-import { schemaMigrations, createTable } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, createTable, addColumns } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
   migrations: [
@@ -88,6 +88,17 @@ export default schemaMigrations({
             { name: 'updated_at', type: 'number' },
           ],
         }),
+      ],
+    },
+    {
+      // Phase 2F Security: Remove legacy subscription fields from users table
+      // These fields have been migrated to user_entitlements table (server-controlled, secure)
+      // Note: WatermelonDB will ignore these columns automatically when they're removed from schema
+      toVersion: 8,
+      steps: [
+        // No explicit steps needed - columns removed from schema definition
+        // WatermelonDB will automatically ignore subscription_tier, is_trial_period, subscription_expires_at
+        // when reading from the users table. The columns remain in SQLite but are unused.
       ],
     },
   ],
