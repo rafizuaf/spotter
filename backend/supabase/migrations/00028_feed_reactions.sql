@@ -1,4 +1,4 @@
--- Migration: 00023_feed_reactions.sql
+-- Migration: 00028_feed_reactions.sql
 -- Phase 2G: Social & Competition - Feed Reactions
 -- Description: Add post reactions system (likes, fire, muscle, clap)
 
@@ -6,7 +6,7 @@
 -- POST REACTIONS TABLE
 -- ============================================================================
 
-CREATE TABLE post_reactions (
+CREATE TABLE IF NOT EXISTS post_reactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     social_post_id UUID NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -28,22 +28,22 @@ COMMENT ON COLUMN post_reactions.reaction_type IS 'Type of reaction: LIKE, FIRE,
 -- ============================================================================
 
 -- Index for fetching reactions by post (most common query)
-CREATE INDEX idx_post_reactions_post_id
+CREATE INDEX IF NOT EXISTS idx_post_reactions_post_id
     ON post_reactions(social_post_id)
     WHERE deleted_at IS NULL;
 
 -- Index for fetching reactions by user (for user's reaction history)
-CREATE INDEX idx_post_reactions_user_id
+CREATE INDEX IF NOT EXISTS idx_post_reactions_user_id
     ON post_reactions(user_id)
     WHERE deleted_at IS NULL;
 
 -- Composite index for checking if user already reacted
-CREATE INDEX idx_post_reactions_post_user
+CREATE INDEX IF NOT EXISTS idx_post_reactions_post_user
     ON post_reactions(social_post_id, user_id)
     WHERE deleted_at IS NULL;
 
 -- Index for sync queries
-CREATE INDEX idx_post_reactions_updated_at
+CREATE INDEX IF NOT EXISTS idx_post_reactions_updated_at
     ON post_reactions(updated_at);
 
 -- ============================================================================
@@ -53,6 +53,8 @@ CREATE INDEX idx_post_reactions_updated_at
 ALTER TABLE post_reactions ENABLE ROW LEVEL SECURITY;
 
 -- Users can view all non-deleted reactions on visible posts
+-- Note: social_posts visibility is determined by the related workout's visibility
+DROP POLICY IF EXISTS "Users can view reactions on visible posts" ON post_reactions;
 CREATE POLICY "Users can view reactions on visible posts"
     ON post_reactions
     FOR SELECT
@@ -61,13 +63,18 @@ CREATE POLICY "Users can view reactions on visible posts"
         deleted_at IS NULL
         AND EXISTS (
             SELECT 1 FROM social_posts sp
+            LEFT JOIN workouts w ON w.id = sp.workout_id
             WHERE sp.id = post_reactions.social_post_id
             AND sp.deleted_at IS NULL
             AND (
-                sp.visibility = 'PUBLIC'
-                OR sp.user_id = auth.uid()
+                -- Post owner can always see reactions
+                sp.user_id = auth.uid()
+                -- Or if workout is PUBLIC
+                OR (w.visibility = 'PUBLIC' AND w.deleted_at IS NULL)
+                -- Or if workout is FOLLOWERS and user follows the post owner
                 OR (
-                    sp.visibility = 'FOLLOWERS'
+                    w.visibility = 'FOLLOWERS'
+                    AND w.deleted_at IS NULL
                     AND EXISTS (
                         SELECT 1 FROM follows f
                         WHERE f.following_id = sp.user_id
@@ -86,6 +93,8 @@ CREATE POLICY "Users can view reactions on visible posts"
     );
 
 -- Users can create reactions on visible posts
+-- Note: social_posts visibility is determined by the related workout's visibility
+DROP POLICY IF EXISTS "Users can create reactions" ON post_reactions;
 CREATE POLICY "Users can create reactions"
     ON post_reactions
     FOR INSERT
@@ -94,13 +103,18 @@ CREATE POLICY "Users can create reactions"
         user_id = auth.uid()
         AND EXISTS (
             SELECT 1 FROM social_posts sp
+            LEFT JOIN workouts w ON w.id = sp.workout_id
             WHERE sp.id = social_post_id
             AND sp.deleted_at IS NULL
             AND (
-                sp.visibility = 'PUBLIC'
-                OR sp.user_id = auth.uid()
+                -- Post owner can always react
+                sp.user_id = auth.uid()
+                -- Or if workout is PUBLIC
+                OR (w.visibility = 'PUBLIC' AND w.deleted_at IS NULL)
+                -- Or if workout is FOLLOWERS and user follows the post owner
                 OR (
-                    sp.visibility = 'FOLLOWERS'
+                    w.visibility = 'FOLLOWERS'
+                    AND w.deleted_at IS NULL
                     AND EXISTS (
                         SELECT 1 FROM follows f
                         WHERE f.following_id = sp.user_id
@@ -120,6 +134,7 @@ CREATE POLICY "Users can create reactions"
     );
 
 -- Users can update (soft delete) their own reactions
+DROP POLICY IF EXISTS "Users can update own reactions" ON post_reactions;
 CREATE POLICY "Users can update own reactions"
     ON post_reactions
     FOR UPDATE
@@ -128,6 +143,7 @@ CREATE POLICY "Users can update own reactions"
     WITH CHECK (user_id = auth.uid());
 
 -- Users can delete their own reactions (for hard delete if needed)
+DROP POLICY IF EXISTS "Users can delete own reactions" ON post_reactions;
 CREATE POLICY "Users can delete own reactions"
     ON post_reactions
     FOR DELETE
@@ -138,6 +154,7 @@ CREATE POLICY "Users can delete own reactions"
 -- TRIGGER FOR UPDATED_AT
 -- ============================================================================
 
+DROP TRIGGER IF EXISTS set_post_reactions_updated_at ON post_reactions;
 CREATE TRIGGER set_post_reactions_updated_at
     BEFORE UPDATE ON post_reactions
     FOR EACH ROW
@@ -209,6 +226,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to keep counts in sync
+DROP TRIGGER IF EXISTS trigger_update_post_reaction_counts ON post_reactions;
 CREATE TRIGGER trigger_update_post_reaction_counts
     AFTER INSERT OR UPDATE OR DELETE ON post_reactions
     FOR EACH ROW

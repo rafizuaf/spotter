@@ -27,6 +27,18 @@ END $$;
 
 -- Schedule daily computation at 1 AM UTC
 -- This calls the compute-leaderboards edge function
+-- Note: If job already exists, unschedule it first, then schedule again
+DO $$
+BEGIN
+  -- Unschedule existing job if it exists (idempotent)
+  PERFORM cron.unschedule('compute-leaderboards-daily');
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Job doesn't exist yet, that's fine
+    NULL;
+END $$;
+
+-- Schedule the job
 SELECT cron.schedule(
   'compute-leaderboards-daily',
   '0 1 * * *', -- 1 AM UTC daily (cron format: minute hour day month day-of-week)
@@ -41,7 +53,7 @@ SELECT cron.schedule(
       body := '{}'::jsonb
     ) AS response;
   $$
-) ON CONFLICT (jobname) DO NOTHING;
+);
 
 -- Add comment
 COMMENT ON EXTENSION pg_cron IS 'Scheduled job extension for leaderboard computation';

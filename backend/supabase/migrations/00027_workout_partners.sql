@@ -21,14 +21,14 @@ CREATE TABLE IF NOT EXISTS workout_partners (
     CONSTRAINT check_not_self CHECK (user_id != partner_user_id)
 );
 
+-- Soft delete support (must be added before indexes that reference it)
+ALTER TABLE workout_partners ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_workout_partners_workout_id ON workout_partners(workout_id) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_workout_partners_user_id ON workout_partners(user_id) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_workout_partners_partner_user_id ON workout_partners(partner_user_id) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_workout_partners_status ON workout_partners(status) WHERE deleted_at IS NULL;
-
--- Soft delete support
-ALTER TABLE workout_partners ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 -- ============================================================================
 -- WORKOUT PARTNER INVITATIONS TABLE
