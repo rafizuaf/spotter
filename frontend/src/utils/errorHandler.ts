@@ -156,7 +156,22 @@ export function logError(error: unknown, context?: string): void {
     originalError: appError.originalError,
   });
 
-  // TODO: Send to error monitoring service (Sentry, etc.)
+  // Send to error monitoring service (Sentry)
+  if (!__DEV__) {
+    try {
+      const { logError: logToMonitoring } = require('../services/monitoring');
+      const errorToLog = appError.originalError instanceof Error 
+        ? appError.originalError 
+        : new Error(appError.message);
+      logToMonitoring(errorToLog, { 
+        code: appError.code, 
+        userMessage: appError.userMessage,
+        context 
+      });
+    } catch (e) {
+      // Monitoring service not available, ignore
+    }
+  }
 }
 
 /**

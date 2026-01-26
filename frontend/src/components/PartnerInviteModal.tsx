@@ -15,6 +15,7 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -92,7 +93,10 @@ export default function PartnerInviteModal({
       onClose();
     } catch (error) {
       console.error('Error inviting partner:', error);
-      // TODO: Show error toast
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to send invitation. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setInviting(null);
     }

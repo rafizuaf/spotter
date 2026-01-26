@@ -14,10 +14,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../services/supabase';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -39,22 +42,56 @@ export default function FeedbackModal({ visible, onClose }: FeedbackModalProps) 
       return;
     }
 
+    if (!user?.id) {
+      Alert.alert('Error', 'Please log in to submit feedback');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // TODO: Send feedback to backend/email service
-      // For now, just log it
-      console.log('Feedback submitted:', { type, message, userId: user?.id });
-      
+      // Get app version and device info
+      const appVersion = Constants.expoConfig?.version || 'unknown';
+      const platform = Platform.OS;
+      const deviceInfo = {
+        os: Platform.OS,
+        version: Platform.Version,
+        deviceName: Constants.deviceName,
+        deviceId: Constants.installationId,
+      };
+
+      // Submit feedback to backend
+      const { data, error } = await supabase.functions.invoke('submit-feedback', {
+        body: {
+          feedback_type: type,
+          message: message.trim(),
+          app_version: appVersion,
+          platform,
+          device_info: deviceInfo,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to submit feedback');
+      }
+
       Alert.alert(
         'Thank you!',
         'Your feedback has been submitted. We appreciate your input!',
         [{ text: 'OK', onPress: onClose }]
       );
-      
+
       setMessage('');
       setType('general');
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+      console.error('Error submitting feedback:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to submit feedback. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setSubmitting(false);
     }

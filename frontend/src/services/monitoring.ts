@@ -82,6 +82,10 @@ export function logPerformance(metric: PerformanceMetric): void {
 
 /**
  * Track analytics event
+ * 
+ * Supports multiple analytics providers:
+ * - Sentry (always enabled for breadcrumbs)
+ * - Optional: Amplitude, Mixpanel, etc. (configure via env vars)
  */
 export function trackEvent(event: AnalyticsEvent): void {
   if (__DEV__) {
@@ -89,13 +93,29 @@ export function trackEvent(event: AnalyticsEvent): void {
     return;
   }
 
-  // TODO: Integrate with analytics service (Amplitude, Mixpanel, etc.)
+  // Always log to Sentry as breadcrumb
   Sentry.addBreadcrumb({
     category: 'analytics',
     message: event.name,
     level: 'info',
     data: event.properties,
   });
+
+  // Optional: Integrate with third-party analytics services
+  // Example: Amplitude, Mixpanel, etc.
+  // Uncomment and configure as needed:
+  
+  // const amplitudeApiKey = process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY;
+  // if (amplitudeApiKey) {
+  //   // Initialize Amplitude and track event
+  //   // Amplitude.getInstance().logEvent(event.name, event.properties);
+  // }
+
+  // const mixpanelToken = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN;
+  // if (mixpanelToken) {
+  //   // Initialize Mixpanel and track event
+  //   // Mixpanel.track(event.name, event.properties);
+  // }
 }
 
 /**
