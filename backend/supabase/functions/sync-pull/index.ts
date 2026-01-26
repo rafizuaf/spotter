@@ -109,6 +109,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         "user_training_maxes",
         "user_advanced_program_enrollments",
         "user_entitlements", // Phase 2F: Monetization (READ-ONLY, pull-only)
+        "post_reactions", // Phase 2G: User's reactions
+        "challenge_participants", // Phase 2G: User's challenge participations
+        "workout_partners", // Phase 2G: User's workout partner sessions
+        "workout_partner_invitations", // Phase 2G: User's workout partner invitations
       ];
 
       if (userTables.includes(table)) {
@@ -119,6 +123,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (table === "users") {
         query = query.eq("id", user.id);
       }
+
+      // Phase 2G: Special handling for challenges (RLS handles visibility automatically)
+      if (table === "challenges") {
+        // RLS policy already filters by visibility (PUBLIC, FOLLOWERS, INVITE_ONLY)
+        // No additional filtering needed - RLS enforces visibility rules
+      }
+
+      // Phase 2G: Special handling for post_reactions
+      // RLS policy filters to reactions on visible posts automatically
+      // We want user's reactions AND reactions on posts user can see
+      if (table === "post_reactions") {
+        // RLS policy already handles visibility (reactions on visible posts)
+        // No additional filtering needed
+      }
+
+      // Phase 2G: Special handling for leaderboards (read-only, pull all active)
+      if (table === "leaderboards") {
+        query = query.eq("is_active", true);
+      }
+
+      // Phase 2G: Special handling for leaderboard_entries (read-only)
+      // RLS policy filters out blocked users automatically
+      // No additional filtering needed
 
       // Get records updated since last pull
       query = query.gte("updated_at", lastPulledAtISO);

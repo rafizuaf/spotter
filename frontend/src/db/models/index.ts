@@ -27,6 +27,13 @@ import AdvancedProgram from './AdvancedProgram';
 import AdvancedProgramDay from './AdvancedProgramDay';
 import UserAdvancedProgramEnrollment from './UserAdvancedProgramEnrollment';
 import UserEntitlement from './UserEntitlement';
+import PostReaction from './PostReaction';
+import Challenge from './Challenge';
+import ChallengeParticipant from './ChallengeParticipant';
+import Leaderboard from './Leaderboard';
+import LeaderboardEntry from './LeaderboardEntry';
+import WorkoutPartner from './WorkoutPartner';
+import WorkoutPartnerInvitation from './WorkoutPartnerInvitation';
 
 export {
   User,
@@ -58,6 +65,13 @@ export {
   AdvancedProgramDay,
   UserAdvancedProgramEnrollment,
   UserEntitlement,
+  PostReaction,
+  Challenge,
+  ChallengeParticipant,
+  Leaderboard,
+  LeaderboardEntry,
+  WorkoutPartner,
+  WorkoutPartnerInvitation,
 };
 
 export const modelClasses = [
@@ -90,4 +104,11 @@ export const modelClasses = [
   AdvancedProgramDay,
   UserAdvancedProgramEnrollment,
   UserEntitlement,
+  PostReaction,
+  Challenge,
+  ChallengeParticipant,
+  Leaderboard,
+  LeaderboardEntry,
+  WorkoutPartner,
+  WorkoutPartnerInvitation,
 ];

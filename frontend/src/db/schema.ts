@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 8, // Phase 2F: removed legacy subscription fields (migrated to user_entitlements)
+  version: 10, // Phase 2G: Social & Competition (reactions, challenges, leaderboards, workout partners)
   tables: [
     // ============================================
     // Users & Settings
@@ -233,6 +233,10 @@ export const schema = appSchema({
         { name: 'workout_id', type: 'string', isOptional: true },
         { name: 'achievement_code', type: 'string', isOptional: true },
         { name: 'generated_headline', type: 'string' },
+        { name: 'reaction_count_like', type: 'number' }, // Phase 2G: Cached reaction counts
+        { name: 'reaction_count_fire', type: 'number' },
+        { name: 'reaction_count_muscle', type: 'number' },
+        { name: 'reaction_count_clap', type: 'number' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
@@ -505,6 +509,123 @@ export const schema = appSchema({
         { name: 'workout_completed_at', type: 'number', isOptional: true },
         { name: 'skipped', type: 'boolean' },
         { name: 'skip_reason', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    // ============================================
+    // Phase 2G: Social & Competition
+    // ============================================
+    tableSchema({
+      name: 'post_reactions',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'social_post_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'reaction_type', type: 'string' }, // 'LIKE' | 'FIRE' | 'MUSCLE' | 'CLAP'
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'challenges',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'created_by_id', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'challenge_type', type: 'string' }, // 'MOST_VOLUME' | 'MOST_WORKOUTS' | 'MOST_SETS' | 'FIRST_TO_TARGET'
+        { name: 'target_value', type: 'number', isOptional: true },
+        { name: 'start_date', type: 'number' },
+        { name: 'end_date', type: 'number' },
+        { name: 'status', type: 'string' }, // 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+        { name: 'visibility', type: 'string' }, // 'PUBLIC' | 'FOLLOWERS' | 'INVITE_ONLY'
+        { name: 'max_participants', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'challenge_participants',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'challenge_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'status', type: 'string' }, // 'ACTIVE' | 'COMPLETED' | 'ABANDONED'
+        { name: 'current_score', type: 'number' },
+        { name: 'rank', type: 'number', isOptional: true },
+        { name: 'joined_at', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'leaderboards',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'code', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'metric_type', type: 'string' }, // 'TOTAL_XP' | 'TOTAL_VOLUME' | 'WORKOUT_COUNT' | 'PR_COUNT'
+        { name: 'time_period', type: 'string' }, // 'WEEKLY' | 'MONTHLY' | 'ALL_TIME'
+        { name: 'is_active', type: 'boolean' },
+        { name: 'display_order', type: 'number' },
+        { name: 'icon_name', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    tableSchema({
+      name: 'leaderboard_entries',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'leaderboard_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'rank', type: 'number' },
+        { name: 'score', type: 'number' },
+        { name: 'period_start', type: 'number' },
+        { name: 'period_end', type: 'number' },
+        { name: 'computed_at', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    // Phase 2G: Workout Partners
+    tableSchema({
+      name: 'workout_partners',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'workout_id', type: 'string', isIndexed: true },
+        { name: 'user_id', type: 'string', isIndexed: true },
+        { name: 'partner_user_id', type: 'string', isIndexed: true },
+        { name: 'status', type: 'string' }, // 'ACTIVE' | 'LEFT' | 'COMPLETED'
+        { name: 'joined_at', type: 'number' },
+        { name: 'left_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    tableSchema({
+      name: 'workout_partner_invitations',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'workout_id', type: 'string', isIndexed: true },
+        { name: 'inviter_user_id', type: 'string', isIndexed: true },
+        { name: 'invitee_user_id', type: 'string', isIndexed: true },
+        { name: 'status', type: 'string' }, // 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED'
+        { name: 'expires_at', type: 'number' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },

@@ -33,6 +33,13 @@ const SYNC_TABLES = [
   'advanced_program_days', // Phase 2E (read-only)
   'user_advanced_program_enrollments', // Phase 2E
   'user_entitlements', // Phase 2F: Monetization (READ-ONLY, pull-only)
+  'post_reactions', // Phase 2G: Feed reactions
+  'challenges', // Phase 2G: User-created challenges
+  'challenge_participants', // Phase 2G: Challenge participation
+  'leaderboards', // Phase 2G: Leaderboard definitions (READ-ONLY, pull-only)
+  'leaderboard_entries', // Phase 2G: Leaderboard rankings (READ-ONLY, pull-only)
+  'workout_partners', // Phase 2G: Workout partner sessions
+  'workout_partner_invitations', // Phase 2G: Workout partner invitations
 ];
 
 interface SyncPullResponse {

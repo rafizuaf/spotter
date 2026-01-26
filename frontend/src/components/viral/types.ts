@@ -77,7 +77,8 @@ export type ViralShareType =
   | 'ARCHETYPE'
   | 'WANTED'
   | 'TOMBSTONE'
-  | 'RANSOM';
+  | 'RANSOM'
+  | 'INSTAGRAM_STORY'; // Phase 2G: Instagram Story format
 
 /**
  * Raw API response from generate-viral-stats Edge Function (snake_case)

@@ -7,9 +7,12 @@ import { syncDatabase } from '../../src/db/sync';
 import type SocialPost from '../../src/db/models/SocialPost';
 import type User from '../../src/db/models/User';
 import { useTheme } from '../../src/hooks/useTheme';
+import ReactionBar from '../../src/components/ReactionBar';
+import type { ReactionType } from '../../src/db/models/PostReaction';
 
 interface PostWithUser {
   id: string;
+  serverId: string;
   userId: string;
   username: string;
   avatarUrl?: string;
@@ -17,6 +20,10 @@ interface PostWithUser {
   createdAt: Date;
   workoutId?: string;
   achievementCode?: string;
+  reactionCountLike: number;
+  reactionCountFire: number;
+  reactionCountMuscle: number;
+  reactionCountClap: number;
 }
 
 export default function FeedScreen() {
@@ -131,6 +138,7 @@ export default function FeedScreen() {
 
         return {
           id: post.id,
+          serverId: post.serverId,
           userId: post.userId,
           username: userData?.username || 'Unknown User',
           avatarUrl: userData?.avatarUrl,
@@ -138,13 +146,36 @@ export default function FeedScreen() {
           createdAt: post.createdAt,
           workoutId: post.workoutId,
           achievementCode: post.achievementCode,
+          reactionCountLike: post.reactionCountLike || 0,
+          reactionCountFire: post.reactionCountFire || 0,
+          reactionCountMuscle: post.reactionCountMuscle || 0,
+          reactionCountClap: post.reactionCountClap || 0,
         };
       });
 
       // Filter out any null posts (from errors)
       const validPosts = postsWithUsers.filter((p) => p !== null) as PostWithUser[];
 
-      setPosts(validPosts);
+      // Phase 2G: Batch load user reactions for all posts (optimized)
+      const postServerIds = validPosts.map((p) => p.serverId);
+      const userReactionsMap = new Map<string, ReactionType | null>();
+      
+      if (postServerIds.length > 0 && user?.id) {
+        // Use batch query from reactions service
+        const { getUserReactionsForPosts } = await import('../../src/services/reactions');
+        const reactions = await getUserReactionsForPosts(postServerIds, user.id);
+        reactions.forEach((reactionType, postId) => {
+          userReactionsMap.set(postId, reactionType);
+        });
+      }
+
+      // Add user reactions to posts
+      const postsWithReactions = validPosts.map((post) => ({
+        ...post,
+        userReaction: userReactionsMap.get(post.serverId) || null,
+      }));
+
+      setPosts(postsWithReactions);
     } catch (error) {
       console.error('Error loading feed:', error);
     } finally {
@@ -179,7 +210,7 @@ export default function FeedScreen() {
     return date.toLocaleDateString();
   };
 
-  const renderPost = ({ item }: { item: PostWithUser }) => (
+  const renderPost = ({ item }: { item: PostWithUser & { userReaction?: ReactionType | null } }) => (
     <View style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.postHeader}>
         {/* Avatar */}
@@ -204,6 +235,18 @@ export default function FeedScreen() {
 
       {/* Post content */}
       <Text style={[styles.headline, { color: colors.textPrimary }]}>{item.headline}</Text>
+
+      {/* Phase 2G: Reaction bar */}
+      <ReactionBar
+        postId={item.serverId}
+        reactions={{
+          like: item.reactionCountLike,
+          fire: item.reactionCountFire,
+          muscle: item.reactionCountMuscle,
+          clap: item.reactionCountClap,
+        }}
+        userReaction={item.userReaction || null}
+      />
     </View>
   );
 

@@ -17,12 +17,20 @@ import { ViralShareModal } from '../../src/components/viral';
 import type { ViralShareType } from '../../src/components/viral';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores/authStore';
+import { database } from '../../src/db';
+import { Ionicons } from '@expo/vector-icons';
 import { useTrainingMaxes } from '../../src/hooks/useTrainingMaxes';
 import { getTier } from '../../src/services/exporters/exportLimits';
-import { userSettingsCollection } from '../../src/db';
+import { userSettingsCollection, usersCollection } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import type UserSettings from '../../src/db/models/UserSettings';
 import type { Gender } from '../../src/constants/startingWeights';
+import WorkoutPartnerCard from '../../src/components/WorkoutPartnerCard';
+import { getWorkoutPartners, leavePartnerSession } from '../../src/services/workoutPartners';
+import { syncDatabase } from '../../src/db/sync';
+import type WorkoutPartner from '../../src/db/models/WorkoutPartner';
+import type User from '../../src/db/models/User';
+import type Workout from '../../src/db/models/Workout';
 
 export default function WorkoutScreen() {
   const {
@@ -56,6 +64,10 @@ export default function WorkoutScreen() {
   const [quickSelectEnabled, setQuickSelectEnabled] = useState(true);
   const [tier, setTier] = useState<'FREE' | 'PRO' | 'ELITE'>('FREE');
 
+  // Phase 2G: Workout Partners
+  const [partners, setPartners] = useState<Array<{ partner: WorkoutPartner; user?: User }>>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
   const { getTmForExercise, loading: tmLoading } = useTrainingMaxes(user?.id);
 
   useEffect(() => {
@@ -81,6 +93,86 @@ export default function WorkoutScreen() {
   // Refs for auto-advance cursor
   const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
   const repsInputRefs = useRef<{ [key: string]: TextInput | null }>({});
+
+  // Phase 2G: Load workout partners
+  useEffect(() => {
+    if (isActive && workoutId) {
+      loadPartners();
+    } else {
+      setPartners([]);
+    }
+  }, [isActive, workoutId]);
+
+  const loadPartners = async () => {
+    if (!workoutId) return;
+
+    try {
+      // Get workout server ID
+      const workouts = await database.collections
+        .get('workouts')
+        .query(Q.where('id', workoutId))
+        .fetch();
+
+      if (workouts.length === 0) return;
+
+      const workout = workouts[0] as Workout;
+      const workoutServerId = workout.serverId;
+
+      if (!workoutServerId) return;
+
+      // Get partners
+      const partnerRecords = await getWorkoutPartners(workoutServerId);
+
+      // Get user info for partners
+      const partnerUserIds = partnerRecords.map((p) => p.partnerUserId);
+      const partnerUsers =
+        partnerUserIds.length > 0
+          ? await usersCollection.query(Q.where('server_id', Q.oneOf(partnerUserIds))).fetch()
+          : [];
+
+      const userMap = new Map<string, User>();
+      partnerUsers.forEach((u) => {
+        const typedUser = u as User;
+        if (typedUser.serverId) {
+          userMap.set(typedUser.serverId, typedUser);
+        }
+      });
+
+      // Map partners with user info
+      const partnersWithUsers = partnerRecords.map((partner) => ({
+        partner,
+        user: userMap.get(partner.partnerUserId),
+      }));
+
+      setPartners(partnersWithUsers);
+    } catch (error) {
+      console.error('Error loading partners:', error);
+    }
+  };
+
+  const handleRemovePartner = async (partnerUserId: string) => {
+    if (!workoutId) return;
+
+    try {
+      const workouts = await database.collections
+        .get('workouts')
+        .query(Q.where('id', workoutId))
+        .fetch();
+
+      if (workouts.length === 0) return;
+
+      const workout = workouts[0] as Workout;
+      const workoutServerId = workout.serverId;
+
+      if (!workoutServerId) return;
+
+      await leavePartnerSession(workoutServerId, partnerUserId);
+      await syncDatabase();
+      await loadPartners();
+    } catch (error) {
+      console.error('Error removing partner:', error);
+    }
+  };
 
   // Load user settings
   useEffect(() => {
@@ -389,7 +481,41 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.exerciseList}>
+      <ScrollView style={styles.exerciseList} contentContainerStyle={styles.exerciseListContent}>
+        {/* Phase 2G: Workout Partners Section */}
+        {partners.length > 0 && (
+          <View style={[styles.partnersSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.partnersHeader}>
+              <Text style={[styles.partnersTitle, { color: colors.textPrimary }]}>Training Partners</Text>
+              <TouchableOpacity
+                style={[styles.inviteButton, { borderColor: colors.border }]}
+                onPress={() => setShowInviteModal(true)}
+              >
+                <Ionicons name="person-add-outline" size={16} color={colors.primary} />
+                <Text style={[styles.inviteButtonText, { color: colors.primary }]}>Invite</Text>
+              </TouchableOpacity>
+            </View>
+            {partners.map(({ partner, user }) => (
+              <WorkoutPartnerCard
+                key={partner.id}
+                partner={partner}
+                user={user}
+                onRemove={() => handleRemovePartner(partner.partnerUserId)}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Invite Partner Button (if no partners) */}
+        {partners.length === 0 && workoutId && (
+          <TouchableOpacity
+            style={[styles.invitePartnerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setShowInviteModal(true)}
+          >
+            <Ionicons name="people-outline" size={20} color={colors.primary} />
+            <Text style={[styles.invitePartnerText, { color: colors.primary }]}>Invite Workout Partner</Text>
+          </TouchableOpacity>
+        )}
         {exercises.map((exercise) => (
           <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: colors.surface }]}>
             <View style={styles.exerciseHeader}>
@@ -615,6 +741,50 @@ export default function WorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Phase 2G: Workout Partners
+  partnersSection: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  partnersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  partnersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+  },
+  inviteButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  invitePartnerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  invitePartnerText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
   },
@@ -706,6 +876,8 @@ const styles = StyleSheet.create({
   },
   exerciseList: {
     flex: 1,
+  },
+  exerciseListContent: {
     padding: 16,
   },
   exerciseCard: {

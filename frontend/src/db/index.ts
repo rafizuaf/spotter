@@ -1,5 +1,4 @@
 import { Database } from '@nozbe/watermelondb';
-import type { Collection } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { schema } from './schema';
 import { modelClasses } from './models';
@@ -29,6 +28,13 @@ import type AdvancedProgram from './models/AdvancedProgram';
 import type AdvancedProgramDay from './models/AdvancedProgramDay';
 import type UserAdvancedProgramEnrollment from './models/UserAdvancedProgramEnrollment';
 import type UserEntitlement from './models/UserEntitlement';
+import type PostReaction from './models/PostReaction';
+import type Challenge from './models/Challenge';
+import type ChallengeParticipant from './models/ChallengeParticipant';
+import type Leaderboard from './models/Leaderboard';
+import type LeaderboardEntry from './models/LeaderboardEntry';
+import type WorkoutPartner from './models/WorkoutPartner';
+import type WorkoutPartnerInvitation from './models/WorkoutPartnerInvitation';
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
@@ -76,5 +82,14 @@ export const userAdvancedProgramEnrollmentsCollection = database.get<UserAdvance
 
 // Monetization (Phase 2F) - SECURITY: Pull-only, no push
 export const userEntitlementsCollection = database.get<UserEntitlement>('user_entitlements');
+
+// Phase 2G: Social & Competition
+export const postReactionsCollection = database.get<PostReaction>('post_reactions');
+export const challengesCollection = database.get<Challenge>('challenges');
+export const challengeParticipantsCollection = database.get<ChallengeParticipant>('challenge_participants');
+export const leaderboardsCollection = database.get<Leaderboard>('leaderboards');
+export const leaderboardEntriesCollection = database.get<LeaderboardEntry>('leaderboard_entries');
+export const workoutPartnersCollection = database.get<WorkoutPartner>('workout_partners');
+export const workoutPartnerInvitationsCollection = database.get<WorkoutPartnerInvitation>('workout_partner_invitations');
 
 export default database;

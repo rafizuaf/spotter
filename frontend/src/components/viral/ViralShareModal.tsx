@@ -35,6 +35,8 @@ import WantedPoster from './WantedPoster';
 import Tombstone from './Tombstone';
 import RansomNote from './RansomNote';
 import FraudAlert from './FraudAlert';
+import WorkoutStoryCard from './WorkoutStoryCard';
+import { shareToInstagram } from '../../services/storySharing';
 import type {
   ViralShareModalProps,
   NutritionLabelStats,
@@ -299,6 +301,33 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (err) {
       console.error('Error sharing:', err);
+      Alert.alert('Failed Rep', 'Could not share. Try again, quitter.');
+    } finally {
+      setSharing(false);
+    }
+  }, [captureView]);
+
+  /**
+   * Share to Instagram Stories (Phase 2G)
+   */
+  const handleShareToInstagram = useCallback(async () => {
+    try {
+      setSharing(true);
+
+      // Capture the view
+      const uri = await captureView();
+      if (!uri) {
+        Alert.alert('Failed Rep', 'Could not capture. One more try.');
+        return;
+      }
+
+      // Share to Instagram Stories
+      await shareToInstagram(uri);
+
+      // Haptic feedback
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (err) {
+      console.error('Error sharing:', err);
       // User may have cancelled - don't show error for cancellation
     } finally {
       setSharing(false);
@@ -422,6 +451,38 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
           />
         );
 
+      case 'INSTAGRAM_STORY':
+        // Phase 2G: Instagram Story format
+        if (stats) {
+          return (
+            <WorkoutStoryCard
+              data={{
+                workout: {
+                  name: workoutName,
+                  date: workoutDate,
+                  stats: {
+                    totalVolumeKg: stats.totalVolumeKg,
+                    setsCompleted: stats.setsCompleted,
+                    durationMinutes: stats.durationMinutes,
+                    exercisesCount: stats.exercisesCount,
+                    muscleGroups: stats.muscleGroups,
+                    prsHit: stats.prsHit,
+                    xpEarned: stats.xpEarned,
+                  },
+                },
+              }}
+              variant="dark"
+            />
+          );
+        }
+        return (
+          <View style={styles.placeholderContainer}>
+            <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
+              No workout data available
+            </Text>
+          </View>
+        );
+
       // Handle FRAUD_ALERT as a special case (not in ViralShareType but supported)
       default:
         // Check if it's a fraud alert based on re-engagement data
@@ -531,6 +592,31 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
                 Flex
               </Text>
             </TouchableOpacity>
+
+            {/* Phase 2G: Instagram Stories Share */}
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  styles.instagramButton,
+                  { backgroundColor: '#E4405F' },
+                ]}
+                onPress={handleShareToInstagram}
+                disabled={sharing}
+                accessible={true}
+                accessibilityLabel="Share to Instagram Stories"
+                accessibilityRole="button"
+              >
+                {sharing ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Ionicons name="logo-instagram" size={24} color="#ffffff" />
+                )}
+                <Text style={[styles.actionButtonText, { color: '#ffffff' }]}>
+                  Instagram
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -640,6 +726,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#000000',
+  },
+  instagramButton: {
+    // Instagram brand color applied inline, this is just for structure
   },
 });
 

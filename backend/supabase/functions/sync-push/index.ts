@@ -104,6 +104,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       "push_devices",
       "user_training_maxes",
       "user_advanced_program_enrollments",
+      "post_reactions", // Phase 2G: User can create/update/delete own reactions
+      "challenges", // Phase 2G: User can create/update own challenges
+      "challenge_participants", // Phase 2G: User can join/leave challenges
+      "workout_partners", // Phase 2G: User can create/update own partner sessions
+      "workout_partner_invitations", // Phase 2G: User can create/update own invitations
+      // leaderboards and leaderboard_entries are read-only (not in allowedTables)
     ];
 
     // SECURITY: Enforce routine limits before processing
@@ -202,14 +208,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const serverRecord = prepareRecord(record, user.id, table);
 
         // Verify ownership before update
+        // Phase 2G: Handle different ownership fields
+        let ownershipField = "user_id";
+        if (table === "challenges") {
+          ownershipField = "created_by_id";
+        } else if (table === "exercises") {
+          ownershipField = "created_by_user_id";
+        }
+
         const { data: existing } = await supabaseAdmin
           .from(table)
-          .select("user_id, created_by_user_id")
+          .select(ownershipField === "created_by_id" ? "created_by_id" : ownershipField === "created_by_user_id" ? "created_by_user_id" : "user_id")
           .eq("id", serverRecord.id)
           .single();
 
         if (existing) {
-          const ownerId = existing.user_id || existing.created_by_user_id;
+          const ownerId = existing[ownershipField];
           if (ownerId && ownerId !== user.id) {
             console.log(`Unauthorized update attempt on ${table}`);
             continue;
@@ -229,14 +243,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // Process deleted records (soft delete)
       for (const id of tableChanges.deleted) {
         // Verify ownership before delete
+        // Phase 2G: Handle different ownership fields
+        let ownershipField = "user_id";
+        if (table === "challenges") {
+          ownershipField = "created_by_id";
+        } else if (table === "exercises") {
+          ownershipField = "created_by_user_id";
+        }
+
         const { data: existing } = await supabaseAdmin
           .from(table)
-          .select("user_id, created_by_user_id")
+          .select(ownershipField === "created_by_id" ? "created_by_id" : ownershipField === "created_by_user_id" ? "created_by_user_id" : "user_id")
           .eq("id", id)
           .single();
 
         if (existing) {
-          const ownerId = existing.user_id || existing.created_by_user_id;
+          const ownerId = existing[ownershipField];
           if (ownerId && ownerId !== user.id) {
             console.log(`Unauthorized delete attempt on ${table}`);
             continue;
@@ -313,6 +335,10 @@ function prepareRecord(
     "push_devices",
     "user_training_maxes",
     "user_advanced_program_enrollments",
+    "post_reactions", // Phase 2G: User's reactions
+    "challenge_participants", // Phase 2G: User's challenge participations
+    "workout_partners", // Phase 2G: User's workout partner sessions
+    "workout_partner_invitations", // Phase 2G: User's workout partner invitations
   ];
 
   const result: Record<string, unknown> = {
@@ -320,6 +346,11 @@ function prepareRecord(
     id,
     updated_at: new Date().toISOString(),
   };
+
+  // Phase 2G: Set created_by_id for challenges
+  if (table === "challenges") {
+    result.created_by_id = userId;
+  }
 
   // SECURITY: Validate workout timestamps (prevent future dates, ensure logical ordering)
   if (table === "workouts") {

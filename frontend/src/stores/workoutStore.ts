@@ -303,6 +303,18 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // Sync to server
       try {
         await syncDatabase();
+        
+        // Phase 2G: Update challenge scores after workout sync completes
+        if (workoutServerId) {
+          try {
+            await supabase.functions.invoke('update-challenge-scores', {
+              body: { workout_id: workoutServerId },
+            });
+          } catch (challengeError) {
+            console.warn('Challenge score update failed:', challengeError);
+            // Don't fail workout completion if challenge update fails
+          }
+        }
       } catch (syncError) {
         console.warn('Sync failed, will retry later:', syncError);
         // Don't fail the workout save if sync fails - it will sync later
