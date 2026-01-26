@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Q } from '@nozbe/watermelondb';
 import { workoutsCollection, workoutSetsCollection } from '../../src/db';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -283,12 +284,13 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
+      <FlashList
         data={workouts}
         renderItem={renderWorkout}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderVolumeHeader}
         contentContainerStyle={styles.listContent}
+        estimatedItemSize={120}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

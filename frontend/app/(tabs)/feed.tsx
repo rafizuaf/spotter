@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import { StyleSheet as RNStyleSheet } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Q } from '@nozbe/watermelondb';
 import { socialPostsCollection, followsCollection, userBlocksCollection, usersCollection } from '../../src/db';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -273,14 +275,16 @@ export default function FeedScreen() {
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Feed</Text>
       </View>
 
-      <FlatList
+      <FlashList
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          posts.length === 0 && styles.emptyListContent,
-        ]}
+        contentContainerStyle={
+          posts.length === 0
+            ? { ...styles.listContent, ...styles.emptyListContent }
+            : styles.listContent
+        }
+        estimatedItemSize={200}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

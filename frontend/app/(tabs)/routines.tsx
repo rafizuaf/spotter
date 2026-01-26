@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
   RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
 import { database, routinesCollection } from '../../src/db';
@@ -168,10 +168,11 @@ export default function RoutinesScreen() {
         </View>
       ) : (
         <>
-          <FlatList
+          <FlashList
             data={routines}
             renderItem={renderRoutine}
             keyExtractor={(item) => item.id}
+            estimatedItemSize={100}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl

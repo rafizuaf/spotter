@@ -3,6 +3,8 @@
  */
 
 export { parseHevyCsv } from './hevyImporter';
+export { parseHevyJson } from './hevyJsonImporter';
+export { parseStrongCsv } from './strongImporter';
 export { parseGenericCsv } from './genericImporter';
 export { commitImport } from './commitImport';
 export { matchExercise, normalizeExerciseName, extractBaseName } from './exerciseMatcher';

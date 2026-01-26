@@ -8,11 +8,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  StyleSheet as RNStyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -168,14 +169,16 @@ export default function ChallengesScreen() {
         ))}
       </View>
 
-      <FlatList
+      <FlashList
         data={challenges}
         renderItem={renderChallenge}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          challenges.length === 0 && styles.emptyListContent,
-        ]}
+        estimatedItemSize={150}
+        contentContainerStyle={
+          challenges.length === 0
+            ? { ...styles.listContent, ...styles.emptyListContent }
+            : styles.listContent
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

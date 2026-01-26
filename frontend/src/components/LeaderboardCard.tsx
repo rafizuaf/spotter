@@ -40,7 +40,7 @@ export default function LeaderboardCard({
     >
       <View style={styles.header}>
         <Ionicons
-          name={leaderboard.ionIconName as any}
+          name={leaderboard.ionIconName as keyof typeof Ionicons.glyphMap}
           size={28}
           color={colors.primary}
           style={styles.icon}

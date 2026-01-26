@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { Stack, router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/hooks/useTheme';
+import SyncStatusIndicator from '../../src/components/SyncStatusIndicator';
 
 interface SettingsItem {
   label: string;
@@ -42,6 +43,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     title: 'Help',
     items: [
       { label: 'Fitness Glossary', route: '/settings/glossary', description: 'Learn fitness terms (RPE, RIR, etc.)' },
+      { label: 'Send Feedback', route: '/settings/feedback', description: 'Report bugs or suggest features' },
     ],
   },
 ];
@@ -83,6 +85,12 @@ export default function SettingsScreen() {
             <Text style={[styles.username, { color: colors.textPrimary }]}>@{(user?.user_metadata?.username as string) || 'User'}</Text>
             <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email || ''}</Text>
           </View>
+        </View>
+
+        {/* Sync Status */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Sync</Text>
+          <SyncStatusIndicator />
         </View>
 
         {/* Settings sections */}

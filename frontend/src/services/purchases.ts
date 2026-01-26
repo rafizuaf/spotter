@@ -7,15 +7,17 @@
 
 import Purchases, {
   CustomerInfo,
-  Offerings,
   PurchasesOffering,
   PurchasesPackage,
   PurchasesError,
   LOG_LEVEL,
 } from 'react-native-purchases';
 
+// Type alias for Offerings (Purchases.getOfferings() returns PurchasesOfferings)
+export type Offerings = Awaited<ReturnType<typeof Purchases.getOfferings>>;
+
 // Re-export types for use in other files
-export type { Offerings, PurchasesPackage, CustomerInfo };
+export type { PurchasesPackage, CustomerInfo };
 import { Platform } from 'react-native';
 
 // RevenueCat API keys (separate for iOS and Android)
@@ -146,7 +148,7 @@ export async function purchasePackage(
     }
 
     // Network error
-    if (purchasesError.code === 'NETWORK_ERROR') {
+    if (purchasesError.code === Purchases.PURCHASES_ERROR_CODE.NETWORK_ERROR) {
       return { error: 'Network error. Please check your connection.' };
     }
 

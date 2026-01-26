@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useImportStore } from '../../src/stores/importStore';
-import { parseHevyCsv, parseGenericCsv } from '../../src/services/importers';
+import { parseHevyCsv, parseHevyJson, parseStrongCsv, parseGenericCsv } from '../../src/services/importers';
 import type { ImportPreview, ExportFormat } from '../../src/services/importers';
 import ImportPreviewModal from '../../src/components/ImportPreviewModal';
 import ExportOptionsModal from '../../src/components/ExportOptionsModal';
@@ -72,12 +72,60 @@ export default function ImportExportScreen() {
     return parse(content);
   };
 
+  const pickAndParseJson = async (
+    parse: (json: string) => Promise<ImportPreview>
+  ): Promise<ImportPreview | null> => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/json',
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return null;
+    const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
+    return parse(content);
+  };
+
   const handleImportHevy = async () => {
     if (!user) return;
     if (isImporting || parsing) return;
     try {
       setParsing(true);
       const importPreview = await pickAndParseCsv(parseHevyCsv);
+      if (importPreview) {
+        setPreview(importPreview);
+        setShowPreview(true);
+      }
+    } catch (err) {
+      console.error('Import error:', err);
+      Alert.alert('Error', 'Failed to read file. Please try again.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleImportHevyJson = async () => {
+    if (!user) return;
+    if (isImporting || parsing) return;
+    try {
+      setParsing(true);
+      const importPreview = await pickAndParseJson(parseHevyJson);
+      if (importPreview) {
+        setPreview(importPreview);
+        setShowPreview(true);
+      }
+    } catch (err) {
+      console.error('Import error:', err);
+      Alert.alert('Error', 'Failed to read file. Please try again.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleImportStrong = async () => {
+    if (!user) return;
+    if (isImporting || parsing) return;
+    try {
+      setParsing(true);
+      const importPreview = await pickAndParseCsv(parseStrongCsv);
       if (importPreview) {
         setPreview(importPreview);
         setShowPreview(true);
@@ -106,6 +154,15 @@ export default function ImportExportScreen() {
     } finally {
       setParsing(false);
     }
+  };
+
+  const handleImportAppleHealth = async () => {
+    if (!user) return;
+    Alert.alert(
+      'Apple Health Import',
+      'Apple Health import is coming soon. For now, you can export your Health data and import it as a generic CSV.',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleConfirmImport = () => {
@@ -274,7 +331,7 @@ export default function ImportExportScreen() {
                       { color: busy ? colors.textMuted : colors.textPrimary },
                     ]}
                   >
-                    Import from Hevy
+                    Import from Hevy (CSV)
                   </Text>
                   <Text style={[styles.itemDescription, { color: colors.textMuted }]}>
                     Import workouts from Hevy CSV export
@@ -286,6 +343,95 @@ export default function ImportExportScreen() {
               ) : (
                 <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.item, { borderBottomColor: colors.border }]}
+              onPress={handleImportHevyJson}
+              disabled={busy}
+            >
+              <View style={styles.itemLeft}>
+                <Ionicons
+                  name="download-outline"
+                  size={24}
+                  color={busy ? colors.textMuted : colors.primary}
+                />
+                <View style={styles.itemText}>
+                  <Text
+                    style={[
+                      styles.itemLabel,
+                      { color: busy ? colors.textMuted : colors.textPrimary },
+                    ]}
+                  >
+                    Import from Hevy (JSON)
+                  </Text>
+                  <Text style={[styles.itemDescription, { color: colors.textMuted }]}>
+                    Import workouts from Hevy JSON export
+                  </Text>
+                </View>
+              </View>
+              {parsing ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.item, { borderBottomColor: colors.border }]}
+              onPress={handleImportStrong}
+              disabled={busy}
+            >
+              <View style={styles.itemLeft}>
+                <Ionicons
+                  name="download-outline"
+                  size={24}
+                  color={busy ? colors.textMuted : colors.primary}
+                />
+                <View style={styles.itemText}>
+                  <Text
+                    style={[
+                      styles.itemLabel,
+                      { color: busy ? colors.textMuted : colors.textPrimary },
+                    ]}
+                  >
+                    Import from Strong
+                  </Text>
+                  <Text style={[styles.itemDescription, { color: colors.textMuted }]}>
+                    Import workouts from Strong CSV export
+                  </Text>
+                </View>
+              </View>
+              {parsing ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.item, { borderBottomColor: colors.border }]}
+              onPress={handleImportAppleHealth}
+              disabled={busy}
+            >
+              <View style={styles.itemLeft}>
+                <Ionicons
+                  name="heart-outline"
+                  size={24}
+                  color={busy ? colors.textMuted : colors.primary}
+                />
+                <View style={styles.itemText}>
+                  <Text
+                    style={[
+                      styles.itemLabel,
+                      { color: busy ? colors.textMuted : colors.textPrimary },
+                    ]}
+                  >
+                    Import from Apple Health
+                  </Text>
+                  <Text style={[styles.itemDescription, { color: colors.textMuted }]}>
+                    Coming soon - Export Health data and import as CSV
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.item}

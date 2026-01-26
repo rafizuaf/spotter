@@ -3,11 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  StyleSheet as RNStyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Q } from '@nozbe/watermelondb';
 import { Stack } from 'expo-router';
 import { notificationsCollection, usersCollection } from '../src/db';
@@ -210,14 +211,16 @@ export default function NotificationsScreen() {
         }}
       />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <FlatList
+        <FlashList
           data={notifications}
           renderItem={renderNotification}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[
-            styles.listContent,
-            notifications.length === 0 && styles.emptyListContent,
-          ]}
+          estimatedItemSize={80}
+          contentContainerStyle={
+            notifications.length === 0
+              ? { ...styles.listContent, ...styles.emptyListContent }
+              : styles.listContent
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

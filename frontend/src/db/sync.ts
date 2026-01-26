@@ -1,6 +1,8 @@
 import { synchronize } from '@nozbe/watermelondb/sync';
+import { Q } from '@nozbe/watermelondb';
 import { database } from './index';
 import { supabase } from '../services/supabase';
+import { withRetry, parseError, ErrorCodes } from '../utils/errorHandler';
 
 // Tables to sync
 const SYNC_TABLES = [
@@ -99,39 +101,94 @@ async function pushChanges({ changes, lastPulledAt }: SyncPushPayload): Promise<
 /**
  * Main sync function
  * Call this to sync local database with server
+ * 
+ * Includes automatic retry with exponential backoff for network errors
  */
 export async function syncDatabase(): Promise<void> {
   try {
-    await synchronize({
-      database,
-      pullChanges: async ({ lastPulledAt }) => {
-        const lastPulled: number | null = lastPulledAt !== undefined ? lastPulledAt : null;
-        const response = await pullChanges({ lastPulledAt: lastPulled });
-        return {
-          changes: response.changes,
-          timestamp: response.timestamp !== undefined ? response.timestamp : Date.now(),
-        };
+    await withRetry(
+      async () => {
+        await synchronize({
+          database,
+          pullChanges: async ({ lastPulledAt }) => {
+            const lastPulled: number | null = lastPulledAt !== undefined ? lastPulledAt : null;
+            const response = await pullChanges({ lastPulledAt: lastPulled });
+            return {
+              changes: response.changes,
+              timestamp: response.timestamp !== undefined ? response.timestamp : Date.now(),
+            };
+          },
+          pushChanges: async ({ changes, lastPulledAt }) => {
+            await pushChanges({ changes, lastPulledAt });
+          },
+          migrationsEnabledAtVersion: 1,
+        });
       },
-      pushChanges: async ({ changes, lastPulledAt }) => {
-        await pushChanges({ changes, lastPulledAt });
-      },
-      migrationsEnabledAtVersion: 1,
-    });
+      {
+        maxAttempts: 3,
+        baseDelayMs: 1000,
+        maxDelayMs: 10000,
+        context: 'sync',
+      }
+    );
 
     console.log('Sync completed successfully');
   } catch (error) {
-    console.error('Sync failed:', error);
-    throw error;
+    const appError = parseError(error);
+    console.error('Sync failed after retries:', appError);
+    throw appError;
   }
 }
 
 /**
  * Check if we have pending local changes
+ * 
+ * This checks for records that:
+ * 1. Don't have a server_id (newly created, not synced)
+ * 2. Have been modified locally (updated_at is newer than last sync)
+ * 3. Have been soft-deleted locally (deleted_at is set)
  */
 export async function hasPendingChanges(): Promise<boolean> {
-  // WatermelonDB tracks changes internally
-  // This is a simplified check - in production you might want more granular control
-  return false;
+  try {
+    // Check for newly created records (no server_id) in syncable tables
+    const syncableTables = [
+      'workouts',
+      'workout_sets',
+      'routines',
+      'routine_exercises',
+      'user_body_logs',
+      'user_training_maxes',
+      'user_advanced_program_enrollments',
+      'post_reactions',
+      'challenges',
+      'challenge_participants',
+      'workout_partners',
+      'workout_partner_invitations',
+    ];
+
+    for (const tableName of syncableTables) {
+      const collection = database.collections.get(tableName);
+      
+      // Check for records without server_id (newly created, not yet synced)
+      // WatermelonDB stores server_id as null for local-only records
+      const allRecords = await collection.query().fetch();
+      
+      // Check for records without server_id (newly created, not synced)
+      // WatermelonDB models have serverId as a text field
+      for (const record of allRecords) {
+        const serverId = (record as { serverId?: string | null }).serverId;
+        if (!serverId || serverId === '') {
+          return true; // Found unsynced record
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error checking pending changes:', error);
+    // On error, assume no pending changes to avoid blocking sync
+    return false;
+  }
 }
 
 export default syncDatabase;

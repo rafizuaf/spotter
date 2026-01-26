@@ -3,11 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  StyleSheet as RNStyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
 import {
@@ -162,14 +163,16 @@ export default function FollowersScreen() {
       </View>
 
       {/* List */}
-      <FlatList
+      <FlashList
         data={followers}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          followers.length === 0 && styles.emptyListContent,
-        ]}
+        estimatedItemSize={80}
+        contentContainerStyle={
+          followers.length === 0
+            ? { ...styles.listContent, ...styles.emptyListContent }
+            : styles.listContent
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

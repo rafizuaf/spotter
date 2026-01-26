@@ -6,6 +6,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -18,6 +20,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
 
 interface TableChanges {
   created: Record<string, unknown>[];
@@ -33,7 +36,7 @@ interface PushRequest {
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -44,7 +47,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "No authorization header" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -74,6 +77,33 @@ Deno.serve(async (req: Request): Promise<Response> => {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // SECURITY: Rate limiting - prevent abuse
+    const rateLimit = checkRateLimit(
+      user.id,
+      RATE_LIMITS['sync-push'].maxRequests,
+      RATE_LIMITS['sync-push'].windowMs
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['sync-push'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
     }
 
     // Parse request body
@@ -138,7 +168,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 409,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }
@@ -175,7 +205,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 409,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }

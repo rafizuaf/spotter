@@ -42,7 +42,7 @@ export default function ChallengeCard({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons
-            name={challenge.challengeTypeIcon as any}
+            name={challenge.challengeTypeIcon as keyof typeof Ionicons.glyphMap}
             size={24}
             color={colors.primary}
             style={styles.icon}

@@ -8,11 +8,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  StyleSheet as RNStyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
 import { getAllLeaderboards, getLeaderboard } from '../../src/services/leaderboards';
@@ -213,14 +214,16 @@ export default function LeaderboardsScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={filteredLeaderboards}
           renderItem={renderLeaderboard}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[
-            styles.listContent,
-            filteredLeaderboards.length === 0 && styles.emptyListContent,
-          ]}
+          estimatedItemSize={180}
+          contentContainerStyle={
+            filteredLeaderboards.length === 0
+              ? { ...styles.listContent, ...styles.emptyListContent }
+              : styles.listContent
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

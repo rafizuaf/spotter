@@ -8,6 +8,7 @@ import {
   registerForPushNotifications,
 } from '../src/services/notifications';
 import { initializePurchases } from '../src/services/purchases';
+import { initializeMonitoring, setUserContext, clearUserContext } from '../src/services/monitoring';
 import { useTheme } from '../src/hooks/useTheme';
 
 export default function RootLayout() {
@@ -15,6 +16,8 @@ export default function RootLayout() {
   const colors = useTheme();
 
   useEffect(() => {
+    // Initialize monitoring first
+    initializeMonitoring();
     initialize();
   }, []);
 
@@ -38,6 +41,10 @@ export default function RootLayout() {
         console.error('Failed to initialize RevenueCat:', error);
         // Don't block app initialization if RevenueCat fails
       });
+      // Set user context for monitoring
+      setUserContext(user.id, user.user_metadata?.username as string | undefined);
+    } else {
+      clearUserContext();
     }
   }, [user?.id]);
 
