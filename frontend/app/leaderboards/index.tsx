@@ -23,6 +23,7 @@ import { syncDatabase } from '../../src/db/sync';
 import { Q } from '@nozbe/watermelondb';
 import { usersCollection } from '../../src/db';
 import type Leaderboard from '../../src/db/models/Leaderboard';
+import type { LeaderboardCode } from '../../src/db/models/Leaderboard';
 import type LeaderboardEntry from '../../src/db/models/LeaderboardEntry';
 import type User from '../../src/db/models/User';
 
@@ -68,7 +69,7 @@ export default function LeaderboardsScreen() {
       for (const lb of filtered) {
         try {
           // Get from server (most up-to-date)
-          const response = await getLeaderboard(lb.code as any, 10);
+          const response = await getLeaderboard(lb.code as LeaderboardCode, 10);
           
           // Get user info for top entries
           const userIds = response.entries.map((e) => e.user_id);

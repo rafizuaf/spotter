@@ -2,6 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -62,7 +63,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -84,7 +85,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -102,7 +103,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing userId or workoutId" }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -113,7 +114,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
         {
           status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -130,7 +131,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Workout not found", code: "NOT_FOUND" }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -141,7 +142,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
         {
           status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }

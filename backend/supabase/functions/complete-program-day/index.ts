@@ -54,7 +54,7 @@ const BADGE_CODE = "FIRST_30_DAYS_COMPLETE";
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -65,7 +65,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing authorization header" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -84,7 +84,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       });
     }
 
@@ -108,7 +108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing enrollmentId or dayIndex" }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -122,7 +122,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -141,7 +141,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Enrollment not found" }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -157,7 +157,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -176,7 +176,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Program day not found" }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -197,7 +197,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Day progress record not found" }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -332,7 +332,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         enrollment: updatedEnrollment,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   } catch (error) {
@@ -341,7 +341,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: getResponseHeaders(corsHeaders),
     });
   }
 });

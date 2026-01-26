@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -46,7 +47,7 @@ interface Workout {
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -57,7 +58,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -79,7 +80,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -97,7 +98,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing userId or setIds" }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -108,7 +109,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Forbidden", code: "FORBIDDEN" }),
         {
           status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -149,7 +150,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -167,7 +168,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Failed to fetch sets" }),
         {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -180,7 +181,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }

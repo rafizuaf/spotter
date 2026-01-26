@@ -2,7 +2,7 @@
  * Phase 2D: Import & Export settings screen.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,9 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useImportStore } from '../../src/stores/importStore';
 import { parseHevyCsv, parseHevyJson, parseStrongCsv, parseGenericCsv } from '../../src/services/importers';
 import type { ImportPreview, ExportFormat } from '../../src/services/importers';
-import ImportPreviewModal from '../../src/components/ImportPreviewModal';
-import ExportOptionsModal from '../../src/components/ExportOptionsModal';
+// Lazy load heavy components for code splitting
+const ImportPreviewModal = lazy(() => import('../../src/components/ImportPreviewModal'));
+const ExportOptionsModal = lazy(() => import('../../src/components/ExportOptionsModal'));
 import {
   getTier,
   getLastExportAt,
@@ -573,26 +574,30 @@ export default function ImportExportScreen() {
       </ScrollView>
 
       {preview && (
-        <ImportPreviewModal
-          visible={showPreview}
-          preview={preview}
-          onClose={handleClosePreview}
-          onConfirm={handleConfirmImport}
-        />
+        <Suspense fallback={<ActivityIndicator size="large" color={colors.primary} />}>
+          <ImportPreviewModal
+            visible={showPreview}
+            preview={preview}
+            onClose={handleClosePreview}
+            onConfirm={handleConfirmImport}
+          />
+        </Suspense>
       )}
 
-      <ExportOptionsModal
-        visible={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        onExport={handleExportConfirm}
-        tier={exportTier}
-        canExportCsv={exportCanCsv}
-        canExportJson={exportCanJson}
-        canExportPdf={exportCanPdf}
-        csvLimitReason={exportCsvLimitReason}
-        exporting={exporting}
-        initialFormat={exportInitialFormat}
-      />
+      <Suspense fallback={<ActivityIndicator size="large" color={colors.primary} />}>
+        <ExportOptionsModal
+          visible={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          onExport={handleExportConfirm}
+          tier={exportTier}
+          canExportCsv={exportCanCsv}
+          canExportJson={exportCanJson}
+          canExportPdf={exportCanPdf}
+          csvLimitReason={exportCsvLimitReason}
+          exporting={exporting}
+          initialFormat={exportInitialFormat}
+        />
+      </Suspense>
     </>
   );
 }

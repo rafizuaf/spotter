@@ -2,6 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -38,7 +39,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       });
     }
 
@@ -50,7 +51,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing followingId" }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -74,7 +75,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Not following this user" }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -114,7 +115,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ error: (error as Error).message }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   }

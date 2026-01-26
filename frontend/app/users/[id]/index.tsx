@@ -97,23 +97,32 @@ export default function UserProfileScreen() {
         )
         .fetch();
 
-      const badgesWithAchievements = await Promise.all(
-        userBadges.map(async (badge) => {
-          const typedBadge = badge as UserBadge;
-          const achievements = await database.collections
-            .get('achievements')
-            .query(Q.where('code', typedBadge.achievementCode))
-            .fetch();
+      // FIX: Batch load all achievements once, then use Map for O(1) lookup
+      // This eliminates N+1 query pattern (6 badges = 1 query instead of 6)
+      const allAchievements = await database.collections
+        .get('achievements')
+        .query()
+        .fetch();
+      
+      const achievementMap = new Map<string, Achievement>();
+      allAchievements.forEach((achievement) => {
+        const typedAchievement = achievement as Achievement;
+        achievementMap.set(typedAchievement.code, typedAchievement);
+      });
 
-          return {
-            id: typedBadge.id,
-            achievementCode: typedBadge.achievementCode,
-            earnedAt: typedBadge.earnedAt,
-            isRusty: typedBadge.isRusty,
-            achievement: achievements[0] as Achievement | undefined,
-          };
-        })
-      );
+      // Map badges to achievements using the pre-loaded Map
+      const badgesWithAchievements = userBadges.map((badge) => {
+        const typedBadge = badge as UserBadge;
+        const achievement = achievementMap.get(typedBadge.achievementCode);
+
+        return {
+          id: typedBadge.id,
+          achievementCode: typedBadge.achievementCode,
+          earnedAt: typedBadge.earnedAt,
+          isRusty: typedBadge.isRusty,
+          achievement,
+        };
+      });
       setBadges(badgesWithAchievements);
 
       // Load recent public workouts

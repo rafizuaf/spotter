@@ -5,6 +5,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 const getAllowedOrigin = (): string => {
   return Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -18,7 +19,7 @@ const corsHeaders = {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -45,7 +46,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (userError || !user) {
         return new Response(
           JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 401, headers: getResponseHeaders(corsHeaders) }
         );
       }
     }
@@ -69,7 +70,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           error: "Failed to compute leaderboards",
           details: computeError.message,
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -100,14 +101,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
         duration_ms: durationMs,
         leaderboards: results,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: getResponseHeaders(corsHeaders) }
     );
   } catch (error) {
     console.error("compute-leaderboards error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage, code: "INTERNAL_ERROR" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: getResponseHeaders(corsHeaders) }
     );
   }
 });

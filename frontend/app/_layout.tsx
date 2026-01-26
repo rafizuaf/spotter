@@ -9,6 +9,7 @@ import {
 } from '../src/services/notifications';
 import { initializePurchases } from '../src/services/purchases';
 import { initializeMonitoring, setUserContext, clearUserContext } from '../src/services/monitoring';
+import { setupShortcutListener } from '../src/services/shortcuts';
 import { useTheme } from '../src/hooks/useTheme';
 
 export default function RootLayout() {
@@ -24,6 +25,12 @@ export default function RootLayout() {
   // Setup notification listeners
   useEffect(() => {
     const cleanup = setupNotificationListeners();
+    return cleanup;
+  }, []);
+
+  // Setup shortcut/deep link listener
+  useEffect(() => {
+    const cleanup = setupShortcutListener();
     return cleanup;
   }, []);
 

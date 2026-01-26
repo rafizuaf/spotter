@@ -16,7 +16,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/hooks/useTheme';
-import { getLeaderboard } from '../../src/services/leaderboards';
+import { getLeaderboard, type LeaderboardEntryWithUser } from '../../src/services/leaderboards';
 import LeaderboardEntryRow from '../../src/components/LeaderboardEntryRow';
 import EmptyState from '../../src/components/EmptyState';
 import { syncDatabase } from '../../src/db/sync';
@@ -33,8 +33,10 @@ export default function LeaderboardDetailScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
-  const [entries, setEntries] = useState<Array<{ entry: any; user?: User }>>([]);
-  const [userEntry, setUserEntry] = useState<any | null>(null);
+  const [entries, setEntries] = useState<Array<{ entry: LeaderboardEntryWithUser; user?: User }>>([]);
+  const [userEntry, setUserEntry] = useState<LeaderboardEntryWithUser | null>(null);
+  const [period, setPeriod] = useState<{ start: string; end: string } | null>(null);
+  const [computedAt, setComputedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -63,6 +65,10 @@ export default function LeaderboardDetailScreen() {
       // Get entries from server
       const response = await getLeaderboard(code as LeaderboardCode, 100);
 
+      // Store period and computed_at from response
+      setPeriod(response.period);
+      setComputedAt(response.computed_at);
+
       // Get user info for all entries
       const userIds = Array.from(new Set(response.entries.map((e) => e.user_id)));
       const users = userIds.length > 0
@@ -77,41 +83,17 @@ export default function LeaderboardDetailScreen() {
         }
       });
 
-      // Map entries
+      // Map entries - use LeaderboardEntryWithUser type from service
       const mappedEntries = response.entries.map((e) => ({
-        entry: {
-          id: e.user_id,
-          serverId: e.user_id,
-          leaderboardId: lb.id,
-          userId: e.user_id,
-          rank: e.rank,
-          score: e.score,
-          periodStart: new Date(response.period.start),
-          periodEnd: new Date(response.period.end),
-          computedAt: new Date(response.computed_at),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
+        entry: e, // Use the LeaderboardEntryWithUser directly
         user: userMap.get(e.user_id),
       }));
 
       setEntries(mappedEntries);
 
-      // Set user entry
+      // Set user entry - use LeaderboardEntryWithUser type
       if (response.user_entry) {
-        setUserEntry({
-          id: response.user_entry.user_id,
-          serverId: response.user_entry.user_id,
-          leaderboardId: lb.id,
-          userId: response.user_entry.user_id,
-          rank: response.user_entry.rank,
-          score: response.user_entry.score,
-          periodStart: new Date(response.period.start),
-          periodEnd: new Date(response.period.end),
-          computedAt: new Date(response.computed_at),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+        setUserEntry(response.user_entry);
       }
     } catch (error) {
       console.error('Error loading leaderboard:', error);
@@ -181,13 +163,15 @@ export default function LeaderboardDetailScreen() {
           <Text style={[styles.description, { color: colors.textSecondary }]}>
             {leaderboard.description || `Top ${leaderboard.metricTypeLabel} rankings`}
           </Text>
-          <Text style={[styles.period, { color: colors.textSecondary }]}>
-            Period: {new Date(userEntry?.periodStart || Date.now()).toLocaleDateString()} -{' '}
-            {new Date(userEntry?.periodEnd || Date.now()).toLocaleDateString()}
-          </Text>
-          {userEntry?.computedAt && (
+          {period && (
+            <Text style={[styles.period, { color: colors.textSecondary }]}>
+              Period: {new Date(period.start).toLocaleDateString()} -{' '}
+              {new Date(period.end).toLocaleDateString()}
+            </Text>
+          )}
+          {computedAt && (
             <Text style={[styles.computedAt, { color: colors.textMuted }]}>
-              Last updated: {new Date(userEntry.computedAt).toLocaleString()}
+              Last updated: {new Date(computedAt).toLocaleString()}
             </Text>
           )}
         </View>
@@ -211,14 +195,14 @@ export default function LeaderboardDetailScreen() {
           {entries.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No entries yet</Text>
           ) : (
-            entries.map((item) => (
+            entries.map((item, index) => (
               <LeaderboardEntryRow
-                key={item.entry.id}
+                key={`${item.entry.user_id}-${item.entry.rank}-${index}`}
                 entry={item.entry}
                 user={item.user}
                 leaderboard={leaderboard}
                 rank={item.entry.rank}
-                isCurrentUser={item.entry.userId === user?.id}
+                isCurrentUser={item.entry.user_id === user?.id}
               />
             ))
           )}

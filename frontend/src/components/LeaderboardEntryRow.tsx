@@ -12,9 +12,10 @@ import { useTheme } from '../hooks/useTheme';
 import type LeaderboardEntry from '../db/models/LeaderboardEntry';
 import type User from '../db/models/User';
 import type Leaderboard from '../db/models/Leaderboard';
+import type { LeaderboardEntryWithUser } from '../services/leaderboards';
 
 interface LeaderboardEntryRowProps {
-  entry: LeaderboardEntry;
+  entry: LeaderboardEntry | LeaderboardEntryWithUser;
   user?: User;
   leaderboard: Leaderboard;
   rank: number;

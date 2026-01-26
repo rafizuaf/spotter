@@ -4,6 +4,8 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 const getAllowedOrigin = (): string => {
   return Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -34,7 +36,7 @@ interface CreateChallengeRequest {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -42,7 +44,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -56,7 +58,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -76,42 +78,42 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!title || typeof title !== "string" || title.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: "Title is required", code: "INVALID_INPUT", field: "title" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (title.length > 100) {
       return new Response(
         JSON.stringify({ error: "Title must be 100 characters or less", code: "INVALID_INPUT", field: "title" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (description && description.length > 500) {
       return new Response(
         JSON.stringify({ error: "Description must be 500 characters or less", code: "INVALID_INPUT", field: "description" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (!VALID_CHALLENGE_TYPES.includes(challenge_type)) {
       return new Response(
         JSON.stringify({ error: `Invalid challenge_type. Must be one of: ${VALID_CHALLENGE_TYPES.join(", ")}`, code: "INVALID_INPUT", field: "challenge_type" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (challenge_type === "FIRST_TO_TARGET" && (!target_value || target_value <= 0)) {
       return new Response(
         JSON.stringify({ error: "target_value is required and must be > 0 for FIRST_TO_TARGET challenges", code: "INVALID_INPUT", field: "target_value" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (!VALID_VISIBILITY.includes(visibility)) {
       return new Response(
         JSON.stringify({ error: `Invalid visibility. Must be one of: ${VALID_VISIBILITY.join(", ")}`, code: "INVALID_INPUT", field: "visibility" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -122,21 +124,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (isNaN(startDate.getTime())) {
       return new Response(
         JSON.stringify({ error: "Invalid start_date format", code: "INVALID_INPUT", field: "start_date" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (isNaN(endDate.getTime())) {
       return new Response(
         JSON.stringify({ error: "Invalid end_date format", code: "INVALID_INPUT", field: "end_date" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (endDate <= startDate) {
       return new Response(
         JSON.stringify({ error: "end_date must be after start_date", code: "INVALID_INPUT", field: "end_date" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -146,14 +148,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (durationMs > maxDurationMs) {
       return new Response(
         JSON.stringify({ error: "Challenge duration cannot exceed 30 days", code: "INVALID_INPUT", field: "end_date" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (max_participants < 2 || max_participants > 100) {
       return new Response(
         JSON.stringify({ error: "max_participants must be between 2 and 100", code: "INVALID_INPUT", field: "max_participants" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -182,7 +184,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error("Error creating challenge:", createError);
       return new Response(
         JSON.stringify({ error: "Failed to create challenge", code: "INTERNAL_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -212,14 +214,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
           visibility: challenge.visibility,
         },
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: getResponseHeaders(corsHeaders) }
     );
   } catch (error) {
     console.error("create-challenge error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage, code: "INTERNAL_ERROR" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: getResponseHeaders(corsHeaders) }
     );
   }
 });

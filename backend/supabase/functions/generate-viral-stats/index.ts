@@ -13,6 +13,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // SECURITY: Restrict CORS to specific origins (not "*")
 const getAllowedOrigin = (): string => {
@@ -505,7 +506,7 @@ const calculateWorkoutStats = (
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -516,7 +517,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -536,7 +537,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -553,7 +554,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -585,7 +586,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }
@@ -599,7 +600,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }
@@ -634,7 +635,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }
@@ -654,7 +655,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           nutrition_label: nutritionLabelStats,
         }),
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -683,7 +684,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }
@@ -718,7 +719,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }),
             {
               status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              headers: getResponseHeaders(corsHeaders),
             }
           );
         }
@@ -759,7 +760,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           },
         }),
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -871,7 +872,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           last_workout_date: lastWorkoutDate?.toISOString() ?? null,
         }),
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -881,7 +882,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ error: "Invalid request", code: "INVALID_INPUT" }),
       {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   } catch (error) {
@@ -893,7 +894,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   }

@@ -4,6 +4,8 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -44,7 +46,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -55,7 +57,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -80,7 +82,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
         {
           status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -99,7 +101,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -113,7 +115,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -128,7 +130,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -150,7 +152,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -173,7 +175,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -197,7 +199,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }),
             {
               status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              headers: getResponseHeaders(corsHeaders),
             }
           );
         }
@@ -218,7 +220,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }),
             {
               status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              headers: getResponseHeaders(corsHeaders),
             }
           );
         }
@@ -243,7 +245,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           }),
           {
             status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: getResponseHeaders(corsHeaders),
           }
         );
       }
@@ -314,7 +316,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     };
 
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: getResponseHeaders(corsHeaders),
     });
   } catch (error) {
     console.error("react-to-post error:", error);
@@ -323,7 +325,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ error: errorMessage, code: "INTERNAL_ERROR" }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   }

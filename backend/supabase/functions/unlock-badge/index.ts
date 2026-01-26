@@ -2,6 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -62,7 +63,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       });
     }
 
@@ -72,7 +73,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!userId) {
       return new Response(JSON.stringify({ error: "Missing userId" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       });
     }
 
@@ -80,7 +81,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userId !== user.id) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       });
     }
 
@@ -100,7 +101,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Failed to fetch achievements" }),
         {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -118,7 +119,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Failed to fetch user badges" }),
         {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -280,7 +281,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         badgeCount: newlyUnlocked.length,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   } catch (error) {
@@ -291,7 +292,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   }

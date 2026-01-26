@@ -2,6 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 // ============================================
 // RevenueCat Webhook Handler
@@ -84,14 +85,14 @@ interface ProcessResult {
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight (shouldn't happen from RevenueCat, but just in case)
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   // Only accept POST requests
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: getResponseHeaders(corsHeaders),
     });
   }
 
@@ -114,7 +115,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Server configuration error" }),
         {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -124,7 +125,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.warn("Unauthorized webhook attempt");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       });
     }
 
@@ -178,7 +179,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: getResponseHeaders(corsHeaders),
         }
       );
     }
@@ -244,7 +245,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify(result), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: getResponseHeaders(corsHeaders),
     });
   } catch (error) {
     console.error("Webhook processing error:", error);
@@ -254,7 +255,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ error: errorMessage, success: false }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: getResponseHeaders(corsHeaders),
       }
     );
   }

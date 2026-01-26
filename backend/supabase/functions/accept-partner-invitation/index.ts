@@ -4,6 +4,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 const getAllowedOrigin = (): string => {
   return Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -23,7 +24,7 @@ interface AcceptRequest {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -31,7 +32,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -45,7 +46,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -54,7 +55,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!invitation_id || !UUID_REGEX.test(invitation_id)) {
       return new Response(
         JSON.stringify({ error: "Invalid invitation_id", code: "INVALID_INPUT", field: "invitation_id" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -68,7 +69,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (inviteError || !invitation) {
       return new Response(
         JSON.stringify({ error: "Invitation not found", code: "NOT_FOUND", resource: "invitation" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -76,7 +77,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (invitation.invitee_user_id !== user.id) {
       return new Response(
         JSON.stringify({ error: "This invitation is not for you", code: "FORBIDDEN" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -84,7 +85,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (invitation.status !== "PENDING") {
       return new Response(
         JSON.stringify({ error: `Invitation is ${invitation.status.toLowerCase()}`, code: "FORBIDDEN" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -98,7 +99,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       return new Response(
         JSON.stringify({ error: "Invitation has expired", code: "FORBIDDEN" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -113,14 +114,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (workoutError || !workout) {
       return new Response(
         JSON.stringify({ error: "Workout not found", code: "NOT_FOUND", resource: "workout" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
     if (workout.ended_at) {
       return new Response(
         JSON.stringify({ error: "Workout has already ended", code: "FORBIDDEN" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -134,7 +135,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error("Error updating invitation:", updateError);
       return new Response(
         JSON.stringify({ error: "Failed to accept invitation", code: "INTERNAL_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -167,7 +168,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       return new Response(
         JSON.stringify({ error: "Failed to create partner relationship", code: "INTERNAL_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -203,14 +204,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
         workout_id: invitation.workout_id,
         partner_user_id: invitation.inviter_user_id,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: getResponseHeaders(corsHeaders) }
     );
   } catch (error) {
     console.error("accept-partner-invitation error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage, code: "INTERNAL_ERROR" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: getResponseHeaders(corsHeaders) }
     );
   }
 });

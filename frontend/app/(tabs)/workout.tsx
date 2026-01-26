@@ -13,7 +13,10 @@ import ExercisePicker from '../../src/components/ExercisePicker';
 import RestTimer from '../../src/components/RestTimer';
 import QuickSelectSetRow from '../../src/components/QuickSelectSetRow';
 import { useRestTimerStore } from '../../src/stores/restTimerStore';
-import { ViralShareModal } from '../../src/components/viral';
+// Lazy load viral sharing modal (heavy: react-native-view-shot, image generation)
+import { lazy, Suspense } from 'react';
+import { ActivityIndicator } from 'react-native';
+const ViralShareModal = lazy(() => import('../../src/components/viral').then(m => ({ default: m.ViralShareModal })));
 import type { ViralShareType } from '../../src/components/viral';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -719,16 +722,20 @@ export default function WorkoutScreen() {
         onSelectExercise={handleSelectExercise}
       />
 
-      {/* Viral Share Modal */}
-      <ViralShareModal
-        visible={showShareModal}
-        onClose={() => {
-          setShowShareModal(false);
-          setCompletedWorkoutId(null);
-        }}
-        workoutId={completedWorkoutId ?? undefined}
-        shareType={shareType}
-      />
+      {/* Viral Share Modal - Lazy loaded for code splitting */}
+      {showShareModal && (
+        <Suspense fallback={<ActivityIndicator size="large" color={colors.primary} />}>
+          <ViralShareModal
+            visible={showShareModal}
+            onClose={() => {
+              setShowShareModal(false);
+              setCompletedWorkoutId(null);
+            }}
+            workoutId={completedWorkoutId ?? undefined}
+            shareType={shareType}
+          />
+        </Suspense>
+      )}
 
       {/* Rest Timer */}
       <RestTimer

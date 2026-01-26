@@ -4,6 +4,8 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 const getAllowedOrigin = (): string => {
   return Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -23,7 +25,7 @@ interface JoinChallengeRequest {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -31,7 +33,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -45,7 +47,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -54,7 +56,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!challenge_id || !UUID_REGEX.test(challenge_id)) {
       return new Response(
         JSON.stringify({ error: "Invalid challenge_id", code: "INVALID_INPUT", field: "challenge_id" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -69,7 +71,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (challengeError || !challenge) {
       return new Response(
         JSON.stringify({ error: "Challenge not found or not accessible", code: "NOT_FOUND", resource: "challenge" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -77,7 +79,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (challenge.status === "COMPLETED" || challenge.status === "CANCELLED") {
       return new Response(
         JSON.stringify({ error: "Challenge has ended", code: "FORBIDDEN" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -93,7 +95,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (existingParticipant.deleted_at === null && existingParticipant.status === "ACTIVE") {
         return new Response(
           JSON.stringify({ error: "Already participating in this challenge", code: "CONFLICT" }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 409, headers: getResponseHeaders(corsHeaders) }
         );
       }
 
@@ -113,13 +115,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         console.error("Error rejoining challenge:", rejoinError);
         return new Response(
           JSON.stringify({ error: "Failed to rejoin challenge", code: "INTERNAL_ERROR" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 500, headers: getResponseHeaders(corsHeaders) }
         );
       }
 
       return new Response(
         JSON.stringify({ success: true, action: "rejoined", challenge_id }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -134,7 +136,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (participantCount !== null && participantCount >= challenge.max_participants) {
       return new Response(
         JSON.stringify({ error: "Challenge is full", code: "LIMIT_EXCEEDED", limit: challenge.max_participants }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -151,7 +153,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!invitation && challenge.created_by_id !== user.id) {
         return new Response(
           JSON.stringify({ error: "Invitation required to join this challenge", code: "FORBIDDEN" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 403, headers: getResponseHeaders(corsHeaders) }
         );
       }
 
@@ -176,7 +178,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error("Error joining challenge:", joinError);
       return new Response(
         JSON.stringify({ error: "Failed to join challenge", code: "INTERNAL_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -207,14 +209,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({ success: true, action: "joined", challenge_id }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: getResponseHeaders(corsHeaders) }
     );
   } catch (error) {
     console.error("join-challenge error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage, code: "INTERNAL_ERROR" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: getResponseHeaders(corsHeaders) }
     );
   }
 });

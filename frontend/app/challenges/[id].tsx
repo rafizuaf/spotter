@@ -166,7 +166,7 @@ export default function ChallengeDetailScreen() {
         <View style={[styles.challengeHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.challengeHeaderTop}>
             <Ionicons
-              name={currentChallenge.challengeTypeIcon as any}
+              name={currentChallenge.challengeTypeIcon as keyof typeof Ionicons.glyphMap}
               size={32}
               color={colors.primary}
             />

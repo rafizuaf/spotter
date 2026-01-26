@@ -4,6 +4,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
+import { getResponseHeaders } from "../_shared/security.ts";
 
 const getAllowedOrigin = (): string => {
   return Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -49,7 +50,7 @@ interface GetLeaderboardResponse {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
   try {
@@ -57,7 +58,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "No authorization header", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -71,7 +72,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", code: "AUTH_REQUIRED" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -80,7 +81,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!leaderboard_code || typeof leaderboard_code !== "string") {
       return new Response(
         JSON.stringify({ error: "leaderboard_code is required", code: "INVALID_INPUT", field: "leaderboard_code" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -97,7 +98,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (lbError || !leaderboard) {
       return new Response(
         JSON.stringify({ error: "Leaderboard not found", code: "NOT_FOUND", resource: "leaderboard" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -120,7 +121,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error("Error fetching leaderboard entries:", entriesError);
       return new Response(
         JSON.stringify({ error: "Failed to fetch leaderboard entries", code: "INTERNAL_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: getResponseHeaders(corsHeaders) }
       );
     }
 
@@ -224,14 +225,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     };
 
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: getResponseHeaders(corsHeaders),
     });
   } catch (error) {
     console.error("get-leaderboard error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage, code: "INTERNAL_ERROR" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: getResponseHeaders(corsHeaders) }
     );
   }
 });
