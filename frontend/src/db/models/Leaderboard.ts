@@ -33,6 +33,7 @@ export default class Leaderboard extends Model {
   @field('is_active') isActive!: boolean;
   @field('display_order') displayOrder!: number;
   @text('icon_name') iconName!: string;
+  @field('last_total_participants') lastTotalParticipants?: number;
 
   // Timestamps
   @readonly @date('created_at') createdAt!: Date;

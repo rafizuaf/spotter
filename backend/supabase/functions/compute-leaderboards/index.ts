@@ -74,17 +74,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get counts for each leaderboard
+    // Get counts for each leaderboard (leaderboard_id is UUID FK to leaderboards.id)
     const { data: leaderboards } = await supabaseAdmin
       .from("leaderboards")
-      .select("code, title")
+      .select("id, code, title")
       .eq("is_active", true);
 
     for (const lb of leaderboards || []) {
       const { count } = await supabaseAdmin
         .from("leaderboard_entries")
         .select("*", { count: "exact", head: true })
-        .eq("leaderboard_id", lb.code);
+        .eq("leaderboard_id", lb.id);
 
       results[lb.code] = {
         success: true,
@@ -93,6 +93,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const durationMs = Date.now() - startTime;
+
+    // Invoke check-ranking-badges to award/maintain ranking badges
+    // Non-fatal: log errors but don't fail the leaderboard computation
+    try {
+      const baseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const badgeResponse = await fetch(
+        `${baseUrl}/functions/v1/check-ranking-badges`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${svcKey}`,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+      if (!badgeResponse.ok) {
+        const badgeError = await badgeResponse.text();
+        console.error("check-ranking-badges returned error:", badgeError);
+      }
+    } catch (badgeErr) {
+      console.error("Error invoking check-ranking-badges:", badgeErr);
+    }
 
     return new Response(
       JSON.stringify({

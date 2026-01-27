@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 10, // Phase 2G: Social & Competition (reactions, challenges, leaderboards, workout partners)
+  version: 11, // Ranking badges & profile rankings (show_profile_rankings, prominent_rank, last_total_participants)
   tables: [
     // ============================================
     // Users & Settings
@@ -49,6 +49,8 @@ export const schema = appSchema({
         { name: 'onboarding_completed', type: 'boolean' },
         { name: 'onboarding_persona', type: 'string', isOptional: true },
         { name: 'workout_mode', type: 'string' },
+        { name: 'show_profile_rankings', type: 'boolean' },
+        { name: 'prominent_rank_leaderboard_code', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
@@ -579,6 +581,7 @@ export const schema = appSchema({
         { name: 'is_active', type: 'boolean' },
         { name: 'display_order', type: 'number' },
         { name: 'icon_name', type: 'string' },
+        { name: 'last_total_participants', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

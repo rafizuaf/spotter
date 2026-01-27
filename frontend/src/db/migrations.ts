@@ -1,4 +1,4 @@
-import { schemaMigrations, createTable } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, createTable, addColumns } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
   migrations: [
@@ -217,6 +217,23 @@ export default schemaMigrations({
             { name: 'updated_at', type: 'number' },
             { name: 'deleted_at', type: 'number', isOptional: true },
           ],
+        }),
+      ],
+    },
+    {
+      // Ranking badges & profile rankings: user_settings + leaderboards columns
+      toVersion: 11,
+      steps: [
+        addColumns({
+          table: 'user_settings',
+          columns: [
+            { name: 'show_profile_rankings', type: 'boolean' },
+            { name: 'prominent_rank_leaderboard_code', type: 'string', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'leaderboards',
+          columns: [{ name: 'last_total_participants', type: 'number', isOptional: true }],
         }),
       ],
     },

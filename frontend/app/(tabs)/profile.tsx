@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
-import { database } from '../../src/db';
+import { database, userSettingsCollection } from '../../src/db';
 import { Q } from '@nozbe/watermelondb';
 import LevelProgress from '../../src/components/LevelProgress';
 import BadgeCard from '../../src/components/BadgeCard';
+import RankingBadge from '../../src/components/RankingBadge';
+import ProfileRankings from '../../src/components/ProfileRankings';
 import StrengthStandardsCard from '../../src/components/StrengthStandardsCard';
+import { getUserRankings, isRankingBadge } from '../../src/services/rankings';
+import type { UserRanking } from '../../src/services/rankings';
 import { ViralShareModal } from '../../src/components/viral';
 import type { ViralShareType } from '../../src/components/viral';
 import type UserLevel from '../../src/db/models/UserLevel';
@@ -58,11 +62,29 @@ export default function ProfileScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareType, setShareType] = useState<ViralShareType>('ARCHETYPE');
 
+  // Profile rankings state (ranking badges & leaderboard display)
+  const [rankings, setRankings] = useState<UserRanking[]>([]);
+  const [showProfileRankings, setShowProfileRankings] = useState(true);
+  const [prominentRankLeaderboardCode, setProminentRankLeaderboardCode] = useState<string | null>(null);
+
   useEffect(() => {
     if (!user) return;
 
     loadUserStats();
     loadStrengthStandards();
+
+    getUserRankings(user.id).then(setRankings).catch(() => {});
+
+    const settingsSubscription = userSettingsCollection
+      .query(Q.where('user_id', user.id))
+      .observe()
+      .subscribe((settings) => {
+        const s = (settings as UserSettings[])[0];
+        if (s) {
+          setShowProfileRankings(s.showProfileRankings ?? true);
+          setProminentRankLeaderboardCode(s.prominentRankLeaderboardCode ?? null);
+        }
+      });
 
     // Subscribe to changes
     const levelSubscription = database.collections
@@ -116,6 +138,7 @@ export default function ProfileScreen() {
     return () => {
       levelSubscription.unsubscribe();
       badgeSubscription.unsubscribe();
+      settingsSubscription.unsubscribe();
     };
   }, [user]);
 
@@ -308,6 +331,17 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Rankings (when enabled in settings) */}
+      {showProfileRankings && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Rankings</Text>
+          <ProfileRankings
+            rankings={rankings}
+            prominentLeaderboardCode={prominentRankLeaderboardCode}
+          />
+        </View>
+      )}
+
       {/* Gym Archetype Button */}
       <TouchableOpacity
         style={[styles.archetypeButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
@@ -379,15 +413,26 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <View>
-            {badges.map((badge) => (
-              <BadgeCard
-                key={badge.id}
-                title={badge.achievement?.title || 'Achievement'}
-                description={badge.achievement?.description || ''}
-                earnedAt={badge.earnedAt}
-                isRusty={badge.isRusty}
-              />
-            ))}
+            {badges.map((badge) =>
+              isRankingBadge(badge.achievementCode) ? (
+                <RankingBadge
+                  key={badge.id}
+                  achievementCode={badge.achievementCode}
+                  title={badge.achievement?.title || 'Achievement'}
+                  description={badge.achievement?.description || ''}
+                  earnedAt={badge.earnedAt}
+                  isRusty={badge.isRusty}
+                />
+              ) : (
+                <BadgeCard
+                  key={badge.id}
+                  title={badge.achievement?.title || 'Achievement'}
+                  description={badge.achievement?.description || ''}
+                  earnedAt={badge.earnedAt}
+                  isRusty={badge.isRusty}
+                />
+              )
+            )}
           </View>
         )}
       </View>

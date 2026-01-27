@@ -39,6 +39,8 @@ export default class UserSettings extends Model {
   @field('onboarding_completed') onboardingCompleted!: boolean;
   @text('onboarding_persona') onboardingPersona?: string;
   @text('workout_mode') workoutMode!: string;
+  @field('show_profile_rankings') showProfileRankings!: boolean;
+  @text('prominent_rank_leaderboard_code') prominentRankLeaderboardCode?: string;
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
   @date('deleted_at') deletedAt?: Date;
