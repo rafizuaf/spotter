@@ -37,6 +37,7 @@ import RansomNote from './RansomNote';
 import FraudAlert from './FraudAlert';
 import WorkoutStoryCard from './WorkoutStoryCard';
 import { shareToInstagram } from '../../services/storySharing';
+import { logError } from '../../utils/errorHandler';
 import type {
   ViralShareModalProps,
   NutritionLabelStats,
@@ -192,7 +193,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
         }
       }
     } catch (err) {
-      console.error('Error fetching viral stats:', err);
+      logError(err, 'ViralShareModal_fetchStats');
       setError(
         err instanceof Error ? err.message : 'Failed to load stats'
       );
@@ -213,7 +214,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
    */
   const captureView = useCallback(async (): Promise<string | null> => {
     if (!viewShotRef.current) {
-      console.error('ViewShot ref not available');
+      logError(new Error('ViewShot ref not available'), 'ViralShareModal_captureView');
       return null;
     }
 
@@ -225,7 +226,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
       });
       return uri;
     } catch (err) {
-      console.error('Error capturing view:', err);
+      logError(err, 'ViralShareModal_captureView');
       return null;
     }
   }, []);
@@ -262,7 +263,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
 
       Alert.alert('Gains Secured', 'Receipt saved. Now go make them jealous.');
     } catch (err) {
-      console.error('Error saving to photos:', err);
+      logError(err, 'ViralShareModal_saveToPhotos');
       Alert.alert('Failed Rep', 'Could not save. Try again, quitter.');
     } finally {
       setSaving(false);
@@ -300,7 +301,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
       // Haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (err) {
-      console.error('Error sharing:', err);
+      logError(err, 'ViralShareModal_share');
       Alert.alert('Failed Rep', 'Could not share. Try again, quitter.');
     } finally {
       setSharing(false);
@@ -327,7 +328,7 @@ const ViralShareModal: React.FC<ViralShareModalProps> = ({
       // Haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (err) {
-      console.error('Error sharing:', err);
+      logError(err, 'ViralShareModal_shareToInstagram');
       // User may have cancelled - don't show error for cancellation
     } finally {
       setSharing(false);

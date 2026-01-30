@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useAuthStore } from '../stores/authStore';
 import { supabase } from '../services/supabase';
+import { logError } from '../utils/errorHandler';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -87,7 +88,7 @@ export default function FeedbackModal({ visible, onClose }: FeedbackModalProps) 
       setMessage('');
       setType('general');
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      logError(error, 'FeedbackModal_submit');
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Failed to submit feedback. Please try again.';

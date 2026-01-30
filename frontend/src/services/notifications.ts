@@ -5,6 +5,8 @@ import { router } from 'expo-router';
 import { database, pushDevicesCollection, notificationsCollection } from '../db';
 import { Q } from '@nozbe/watermelondb';
 import { syncDatabase } from '../db/sync';
+import { logError } from '../utils/errorHandler';
+import { trackEvent } from './monitoring';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -41,7 +43,7 @@ export async function registerForPushNotifications(
 ): Promise<string | null> {
   // Check if we can receive push notifications on this device
   if (Platform.OS === 'web') {
-    console.log('Push notifications not supported on web');
+    trackEvent({ name: 'push_notifications_unsupported', properties: { platform: 'web' } });
     return null;
   }
 
@@ -55,7 +57,7 @@ export async function registerForPushNotifications(
   }
 
   if (finalStatus !== 'granted') {
-    console.log('Push notification permission denied');
+    trackEvent({ name: 'push_notification_permission_denied', properties: { status: finalStatus } });
     return null;
   }
 
@@ -73,10 +75,10 @@ export async function registerForPushNotifications(
     // Sync to server
     await syncDatabase();
 
-    console.log('Push token registered:', expoPushToken);
+    trackEvent({ name: 'push_token_registered', properties: { token: expoPushToken } });
     return expoPushToken;
   } catch (error) {
-    console.error('Error getting push token:', error);
+    logError(error, 'registerForPushNotifications');
     return null;
   }
 }
@@ -151,7 +153,7 @@ export async function unregisterPushNotifications(
 
     await syncDatabase();
   } catch (error) {
-    console.error('Error unregistering push notifications:', error);
+    logError(error, 'unregisterPushNotifications');
   }
 }
 
@@ -172,7 +174,7 @@ export async function markNotificationAsRead(
 
     await syncDatabase();
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    logError(error, 'markNotificationAsRead');
   }
 }
 
@@ -202,7 +204,7 @@ export async function markAllNotificationsAsRead(
 
     await syncDatabase();
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    logError(error, 'markAllNotificationsAsRead');
   }
 }
 
@@ -264,7 +266,7 @@ export function setupNotificationListeners(): () => void {
   // Handle notification received while app is in foreground
   const notificationSubscription = Notifications.addNotificationReceivedListener(
     (notification) => {
-      console.log('Notification received:', notification);
+      trackEvent({ name: 'notification_received_foreground', properties: { identifier: notification.request.identifier } });
       // Sync to get latest notifications
       syncDatabase();
     }

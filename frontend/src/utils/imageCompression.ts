@@ -7,6 +7,7 @@
 
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
+import { logError } from './errorHandler';
 
 export interface CompressionOptions {
   maxWidth?: number;
@@ -107,7 +108,7 @@ export async function compressImage(
     }
   } catch (error) {
     // FileSystem not available, return resized image
-    console.warn('Could not check file size, returning resized image:', error);
+    logError(error, 'imageCompression_checkFileSize');
   }
 
   return {

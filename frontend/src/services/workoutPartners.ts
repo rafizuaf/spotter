@@ -8,6 +8,7 @@
 import { supabase } from './supabase';
 import { database, workoutPartnersCollection, workoutPartnerInvitationsCollection } from '../db';
 import { Q } from '@nozbe/watermelondb';
+import { logError } from '../utils/errorHandler';
 import type WorkoutPartner from '../db/models/WorkoutPartner';
 import type WorkoutPartnerInvitation from '../db/models/WorkoutPartnerInvitation';
 
@@ -42,7 +43,7 @@ export async function invitePartner(
 
     return data as InvitePartnerResponse;
   } catch (error) {
-    console.error('Error inviting partner:', error);
+    logError(error, 'workoutPartners_invite');
     throw error;
   }
 }
@@ -62,7 +63,7 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
       throw error;
     }
   } catch (error) {
-    console.error('Error accepting invitation:', error);
+    logError(error, 'workoutPartners_acceptInvitation');
     throw error;
   }
 }
@@ -95,7 +96,7 @@ export async function declineInvitation(invitationId: string): Promise<void> {
 
     // Sync will handle server update
   } catch (error) {
-    console.error('Error declining invitation:', error);
+    logError(error, 'workoutPartners_declineInvitation');
     throw error;
   }
 }
@@ -116,7 +117,7 @@ export async function leavePartnerSession(workoutId: string, partnerUserId?: str
       throw error;
     }
   } catch (error) {
-    console.error('Error leaving partner session:', error);
+    logError(error, 'workoutPartners_leaveSession');
     throw error;
   }
 }

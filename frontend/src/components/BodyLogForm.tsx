@@ -12,6 +12,7 @@ import {
 import { database, userBodyLogsCollection } from '../db';
 import { syncDatabase } from '../db/sync';
 import { v4 as uuid } from 'uuid';
+import { logError } from '../utils/errorHandler';
 import colors from '@/utils/colors';
 
 interface BodyLogFormProps {
@@ -98,7 +99,7 @@ export default function BodyLogForm({ userId, onSuccess, onCancel }: BodyLogForm
       await syncDatabase();
       onSuccess?.();
     } catch (error) {
-      console.error('Error saving body log:', error);
+      logError(error, 'BodyLogForm_save');
       Alert.alert('Error', 'Failed to save body log');
     } finally {
       setSaving(false);

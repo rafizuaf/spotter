@@ -10,6 +10,7 @@ import { supabase } from './supabase';
 import { database, postReactionsCollection, socialPostsCollection } from '../db';
 import { Q } from '@nozbe/watermelondb';
 import { v4 as uuid } from 'uuid';
+import { logError } from '../utils/errorHandler';
 import type PostReaction from '../db/models/PostReaction';
 import type { ReactionType } from '../db/models/PostReaction';
 import type SocialPost from '../db/models/SocialPost';
@@ -104,7 +105,7 @@ export async function reactToPost(
 
     return response;
   } catch (error) {
-    console.error('Error reacting to post:', error);
+    logError(error, 'reactions_reactToPost');
     throw error;
   }
 }

@@ -18,6 +18,7 @@ import MuscleGroupGrid from '../src/components/MuscleGroupGrid';
 import ExercisePicker from '../src/components/ExercisePicker';
 import QuickLogSetInput from '../src/components/QuickLogSetInput';
 import type UserSettings from '../src/db/models/UserSettings';
+import { logError } from '../src/utils/errorHandler';
 
 export default function QuickLogScreen() {
   const colors = useTheme();
@@ -53,7 +54,7 @@ export default function QuickLogScreen() {
           setWeightUnit((record.weightUnitPreference as 'KG' | 'LBS') || 'KG');
         }
       } catch (error) {
-        console.error('Error loading settings:', error);
+        logError(error, 'quick_log_settings_load');
       }
     };
     loadSettings();

@@ -24,6 +24,7 @@ import {
   type Gender,
 } from '../constants/startingWeights';
 import { hasVideoDemo } from '../utils/videoUrl';
+import { logError } from '../utils/errorHandler';
 import ExerciseDetailModal from './ExerciseDetailModal';
 
 interface ExercisePickerProps {
@@ -92,7 +93,7 @@ export default function ExercisePicker({
         }
       }
     } catch (error) {
-      console.error('Error loading user settings:', error);
+      logError(error, 'ExercisePicker_loadUserSettings');
     }
   };
 
@@ -108,7 +109,7 @@ export default function ExercisePicker({
         .fetch();
       setExercises(exerciseList.map(e => e as Exercise));
     } catch (error) {
-      console.error('Error loading exercises:', error);
+      logError(error, 'ExercisePicker_loadExercises');
     } finally {
       setLoading(false);
     }
@@ -180,7 +181,7 @@ export default function ExercisePicker({
       setSelectedMuscleGroup('All');
       onClose();
     } catch (error) {
-      console.error('Error creating custom exercise:', error);
+      logError(error, 'ExercisePicker_createCustomExercise');
       Alert.alert('Error', 'Failed to create custom exercise');
     }
   };

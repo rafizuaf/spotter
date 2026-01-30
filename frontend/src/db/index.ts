@@ -3,6 +3,7 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { schema } from './schema';
 import { modelClasses } from './models';
 import migrations from './migrations';
+import { logError } from '../utils/errorHandler';
 import type User from './models/User';
 import type UserSettings from './models/UserSettings';
 import type EquipmentBase from './models/EquipmentBase';
@@ -42,7 +43,7 @@ const adapter = new SQLiteAdapter({
   migrations,
   jsi: true, // Enable JSI for better performance (React Native)
   onSetUpError: (error) => {
-    console.error('Database setup error:', error);
+    logError(error, 'database_setup');
   },
 });
 

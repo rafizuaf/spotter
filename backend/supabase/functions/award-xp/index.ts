@@ -383,8 +383,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
  * Update user level based on total XP
  * Level formula: level = floor(sqrt(totalXp / 100)) + 1
  */
-// deno-lint-ignore no-explicit-any
-async function updateUserLevel(supabase: any, userId: string): Promise<void> {
+async function updateUserLevel(supabase: ReturnType<typeof createClient>, userId: string): Promise<void> {
   // Calculate total XP
   const { data: xpLogs } = await supabase
     .from("user_xp_logs")

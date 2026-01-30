@@ -2,7 +2,7 @@ import { synchronize } from '@nozbe/watermelondb/sync';
 import { Q } from '@nozbe/watermelondb';
 import { database } from './index';
 import { supabase } from '../services/supabase';
-import { withRetry, parseError, ErrorCodes } from '../utils/errorHandler';
+import { withRetry, parseError, ErrorCodes, logError } from '../utils/errorHandler';
 
 // Tables to sync
 const SYNC_TABLES = [
@@ -74,7 +74,7 @@ async function pullChanges({ lastPulledAt }: { lastPulledAt: number | null }): P
   });
 
   if (error) {
-    console.error('Sync pull error:', error);
+    logError(error, 'sync_pull');
     throw error;
   }
 
@@ -93,7 +93,7 @@ async function pushChanges({ changes, lastPulledAt }: SyncPushPayload): Promise<
   });
 
   if (error) {
-    console.error('Sync push error:', error);
+    logError(error, 'sync_push');
     throw error;
   }
 }
@@ -131,11 +131,9 @@ export async function syncDatabase(): Promise<void> {
         context: 'sync',
       }
     );
-
-    console.log('Sync completed successfully');
   } catch (error) {
     const appError = parseError(error);
-    console.error('Sync failed after retries:', appError);
+    logError(appError, 'sync_database');
     throw appError;
   }
 }
@@ -185,7 +183,7 @@ export async function hasPendingChanges(): Promise<boolean> {
 
     return false;
   } catch (error) {
-    console.error('Error checking pending changes:', error);
+    logError(error, 'sync_hasPendingChanges');
     // On error, assume no pending changes to avoid blocking sync
     return false;
   }

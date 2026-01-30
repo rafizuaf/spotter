@@ -22,6 +22,7 @@ import { useTheme } from '../hooks/useTheme';
 import { invitePartner } from '../services/workoutPartners';
 import { Q } from '@nozbe/watermelondb';
 import { usersCollection, followsCollection } from '../db';
+import { logError } from '../utils/errorHandler';
 import type User from '../db/models/User';
 import { useAuthStore } from '../stores/authStore';
 
@@ -79,7 +80,7 @@ export default function PartnerInviteModal({
 
       setUsers(userRecords as User[]);
     } catch (error) {
-      console.error('Error loading following users:', error);
+      logError(error, 'PartnerInviteModal_loadFollowing');
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ export default function PartnerInviteModal({
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error('Error inviting partner:', error);
+      logError(error, 'PartnerInviteModal_invite');
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Failed to send invitation. Please try again.';

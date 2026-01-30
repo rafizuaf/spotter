@@ -9,6 +9,7 @@
 
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
+import { logError } from '../utils/errorHandler';
 
 export interface ShortcutParams {
   action: 'start_workout' | 'log_set' | 'show_stats';
@@ -57,7 +58,7 @@ export function parseShortcutUrl(url: string): ShortcutParams | null {
 
     return params;
   } catch (error) {
-    console.error('Error parsing shortcut URL:', error);
+    logError(error, 'shortcuts_parseUrl');
     return null;
   }
 }
@@ -92,7 +93,7 @@ export function handleShortcut(params: ShortcutParams): void {
       break;
 
     default:
-      console.warn('Unknown shortcut action:', params.action);
+      logError(new Error(`Unknown shortcut action: ${params.action}`), 'shortcuts_handle');
   }
 }
 

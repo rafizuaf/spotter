@@ -23,6 +23,7 @@ import NotificationCard from '../src/components/NotificationCard';
 import type Notification from '../src/db/models/Notification';
 import type { NotificationType } from '../src/db/models/Notification';
 import { useTheme } from '../src/hooks/useTheme';
+import { logError } from '../src/utils/errorHandler';
 
 interface NotificationItem {
   id: string;
@@ -94,7 +95,7 @@ export default function NotificationsScreen() {
 
       setNotifications(notificationsWithActors);
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      logError(error, 'notifications_load');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -127,7 +128,7 @@ export default function NotificationsScreen() {
       await syncDatabase();
       await loadNotifications();
     } catch (error) {
-      console.error('Error refreshing notifications:', error);
+      logError(error, 'notifications_refresh');
       setRefreshing(false);
     }
   };

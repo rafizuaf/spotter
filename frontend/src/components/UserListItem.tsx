@@ -9,6 +9,7 @@ import {
 import { router } from 'expo-router';
 import { supabase } from '../services/supabase';
 import { syncDatabase } from '../db/sync';
+import { logError } from '../utils/errorHandler';
 import colors from '@/utils/colors';
 
 interface UserListItemProps {
@@ -48,7 +49,7 @@ export default function UserListItem({
         await syncDatabase();
       }
     } catch (error) {
-      console.error('Error following user:', error);
+      logError(error, 'UserListItem_follow');
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,7 @@ export default function UserListItem({
         await syncDatabase();
       }
     } catch (error) {
-      console.error('Error unfollowing user:', error);
+      logError(error, 'UserListItem_unfollow');
     } finally {
       setLoading(false);
     }

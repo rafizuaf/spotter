@@ -8,6 +8,7 @@
 import { supabase } from './supabase';
 import { leaderboardsCollection, leaderboardEntriesCollection } from '../db';
 import { Q } from '@nozbe/watermelondb';
+import { logError } from '../utils/errorHandler';
 import type Leaderboard from '../db/models/Leaderboard';
 import type LeaderboardEntry from '../db/models/LeaderboardEntry';
 import type { LeaderboardCode } from '../db/models/Leaderboard';
@@ -60,7 +61,7 @@ export async function getLeaderboard(
 
     return data as LeaderboardResponse;
   } catch (error) {
-    console.error('Error fetching leaderboard:', error);
+    logError(error, 'leaderboards_get');
     throw error;
   }
 }
@@ -91,7 +92,7 @@ export async function getUserRank(
     const userEntry = response.user_entry;
     return userEntry ? userEntry.rank : null;
   } catch (error) {
-    console.error('Error getting user rank:', error);
+    logError(error, 'leaderboards_getUserRank');
     return null;
   }
 }

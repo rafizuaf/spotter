@@ -29,6 +29,7 @@ import {
   type PurchasesPackage,
 } from '../services/purchases';
 import { syncDatabase } from '../db/sync';
+import { logError } from '../utils/errorHandler';
 
 export interface PaywallModalProps {
   visible: boolean;
@@ -67,7 +68,7 @@ export default function PaywallModal({
       const offeringsData = await getOfferings();
       setOfferings(offeringsData);
     } catch (err) {
-      console.error('Error loading offerings:', err);
+      logError(err, 'PaywallModal_loadOfferings');
       setError('Failed to load subscription options. Please try again.');
     } finally {
       setLoading(false);
@@ -104,7 +105,7 @@ export default function PaywallModal({
         { text: 'OK', onPress: onClose },
       ]);
     } catch (err) {
-      console.error('Purchase error:', err);
+      logError(err, 'PaywallModal_purchase');
       setError('An unexpected error occurred. Please try again.');
       Alert.alert('Error', 'Purchase failed. Please try again.');
       setPurchasing(null);
@@ -130,7 +131,7 @@ export default function PaywallModal({
         Alert.alert('No Purchases', 'No previous purchases found to restore.');
       }
     } catch (err) {
-      console.error('Restore error:', err);
+      logError(err, 'PaywallModal_restore');
       Alert.alert('Error', 'Failed to restore purchases. Please try again.');
     } finally {
       setLoading(false);

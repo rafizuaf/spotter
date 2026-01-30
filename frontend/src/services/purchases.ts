@@ -19,6 +19,8 @@ export type Offerings = Awaited<ReturnType<typeof Purchases.getOfferings>>;
 // Re-export types for use in other files
 export type { PurchasesPackage, CustomerInfo };
 import { Platform } from 'react-native';
+import { logError } from '../utils/errorHandler';
+import { trackEvent } from './monitoring';
 
 // RevenueCat API keys (separate for iOS and Android)
 // These should be set in environment variables
@@ -46,7 +48,7 @@ export async function initializePurchases(userId: string): Promise<void> {
     });
 
     if (!apiKey) {
-      console.warn('[Purchases] RevenueCat API key not configured. Purchases will not work.');
+      logError(new Error('RevenueCat API key not configured'), 'purchases');
       return;
     }
 
@@ -61,9 +63,9 @@ export async function initializePurchases(userId: string): Promise<void> {
     await Purchases.logIn(userId);
 
     isInitialized = true;
-    console.log('[Purchases] Initialized for user:', userId);
+    trackEvent({ name: 'purchases_initialized', properties: { userId } });
   } catch (error) {
-    console.error('[Purchases] Initialization error:', error);
+    logError(error, 'purchases_init');
     throw error;
   }
 }
@@ -75,9 +77,9 @@ export async function resetPurchases(): Promise<void> {
   try {
     await Purchases.logOut();
     isInitialized = false;
-    console.log('[Purchases] Reset');
+    trackEvent({ name: 'purchases_reset' });
   } catch (error) {
-    console.error('[Purchases] Reset error:', error);
+    logError(error, 'purchases_reset');
     // Don't throw - logout should succeed even if RevenueCat fails
   }
 }
@@ -90,14 +92,14 @@ export async function resetPurchases(): Promise<void> {
 export async function getOfferings(): Promise<Offerings | null> {
   try {
     if (!isInitialized) {
-      console.warn('[Purchases] Not initialized. Call initializePurchases first.');
+      logError(new Error('RevenueCat not initialized'), 'purchases');
       return null;
     }
 
     const offerings = await Purchases.getOfferings();
     return offerings;
   } catch (error) {
-    console.error('[Purchases] Get offerings error:', error);
+    logError(error, 'purchases_get_offerings');
     return null;
   }
 }
@@ -110,14 +112,14 @@ export async function getOfferings(): Promise<Offerings | null> {
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
   try {
     if (!isInitialized) {
-      console.warn('[Purchases] Not initialized. Call initializePurchases first.');
+      logError(new Error('RevenueCat not initialized'), 'purchases');
       return null;
     }
 
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
-    console.error('[Purchases] Get customer info error:', error);
+    logError(error, 'purchases_get_customer_info');
     return null;
   }
 }
@@ -137,7 +139,7 @@ export async function purchasePackage(
     }
 
     const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
-    console.log('[Purchases] Purchase successful');
+    trackEvent({ name: 'purchase_successful' });
     return { customerInfo };
   } catch (error) {
     const purchasesError = error as PurchasesError;
@@ -153,7 +155,7 @@ export async function purchasePackage(
     }
 
     // Other errors
-    console.error('[Purchases] Purchase error:', purchasesError);
+    logError(purchasesError, 'purchases_purchase');
     return { error: purchasesError.message || 'Purchase failed' };
   }
 }
@@ -166,15 +168,15 @@ export async function purchasePackage(
 export async function restorePurchases(): Promise<CustomerInfo | null> {
   try {
     if (!isInitialized) {
-      console.warn('[Purchases] Not initialized. Call initializePurchases first.');
+      logError(new Error('RevenueCat not initialized'), 'purchases');
       return null;
     }
 
     const customerInfo = await Purchases.restorePurchases();
-    console.log('[Purchases] Purchases restored');
+    trackEvent({ name: 'purchases_restored' });
     return customerInfo;
   } catch (error) {
-    console.error('[Purchases] Restore purchases error:', error);
+    logError(error, 'purchases_restore');
     return null;
   }
 }
@@ -196,7 +198,7 @@ export async function getAppUserID(): Promise<string | null> {
     }
     return await Purchases.getAppUserID();
   } catch (error) {
-    console.error('[Purchases] Get app user ID error:', error);
+    logError(error, 'purchases_get_user_id');
     return null;
   }
 }

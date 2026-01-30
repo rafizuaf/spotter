@@ -19,6 +19,7 @@ import {
 } from '../services/challenges';
 import { useAuthStore } from './authStore';
 import { syncDatabase } from '../db/sync';
+import { logError } from '../utils/errorHandler';
 
 interface ChallengeStore {
   // State
@@ -58,7 +59,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       const challenges = await getActiveChallenges();
       set({ activeChallenges: challenges, loading: false });
     } catch (error) {
-      console.error('Error loading active challenges:', error);
+      logError(error, 'challengeStore_loadActiveChallenges');
       set({
         error: error instanceof Error ? error.message : 'Failed to load challenges',
         loading: false,
@@ -79,7 +80,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       const challenges = await getUserChallenges(user.id);
       set({ myChallenges: challenges, loading: false });
     } catch (error) {
-      console.error('Error loading my challenges:', error);
+      logError(error, 'challengeStore_loadMyChallenges');
       set({
         error: error instanceof Error ? error.message : 'Failed to load challenges',
         loading: false,
@@ -105,7 +106,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      console.error('Error loading challenge details:', error);
+      logError(error, 'challengeStore_loadChallengeDetails');
       set({
         error: error instanceof Error ? error.message : 'Failed to load challenge',
         loading: false,
@@ -128,7 +129,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       set({ loading: false });
       return challenge;
     } catch (error) {
-      console.error('Error creating challenge:', error);
+      logError(error, 'challengeStore_createChallenge');
       set({
         error: error instanceof Error ? error.message : 'Failed to create challenge',
         loading: false,
@@ -157,7 +158,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       
       set({ loading: false });
     } catch (error) {
-      console.error('Error joining challenge:', error);
+      logError(error, 'challengeStore_joinChallenge');
       set({
         error: error instanceof Error ? error.message : 'Failed to join challenge',
         loading: false,
@@ -186,7 +187,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       
       set({ loading: false });
     } catch (error) {
-      console.error('Error leaving challenge:', error);
+      logError(error, 'challengeStore_leaveChallenge');
       set({
         error: error instanceof Error ? error.message : 'Failed to leave challenge',
         loading: false,

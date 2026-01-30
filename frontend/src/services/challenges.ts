@@ -15,6 +15,7 @@ import type {
   ChallengeStatus,
   ChallengeVisibility,
 } from '../db/models/Challenge';
+import { logError } from '../utils/errorHandler';
 
 export interface CreateChallengeInput {
   title: string;
@@ -98,7 +99,7 @@ export async function createChallenge(
 
     throw new Error('Challenge created but not found in local database');
   } catch (error) {
-    console.error('Error creating challenge:', error);
+    logError(error, 'challenges_create');
     throw error;
   }
 }
@@ -120,7 +121,7 @@ export async function joinChallenge(challengeId: string): Promise<void> {
 
     // Sync will update local DB
   } catch (error) {
-    console.error('Error joining challenge:', error);
+    logError(error, 'challenges_join');
     throw error;
   }
 }
@@ -142,7 +143,7 @@ export async function leaveChallenge(challengeId: string): Promise<void> {
 
     // Sync will update local DB (soft delete participant)
   } catch (error) {
-    console.error('Error leaving challenge:', error);
+    logError(error, 'challenges_leave');
     throw error;
   }
 }

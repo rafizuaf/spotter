@@ -11,6 +11,7 @@ import { initializePurchases } from '../src/services/purchases';
 import { initializeMonitoring, setUserContext, clearUserContext } from '../src/services/monitoring';
 import { setupShortcutListener } from '../src/services/shortcuts';
 import { useTheme } from '../src/hooks/useTheme';
+import { logError } from '../src/utils/errorHandler';
 
 export default function RootLayout() {
   const { isInitialized, initialize, user } = useAuthStore();
@@ -45,7 +46,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (user?.id) {
       initializePurchases(user.id).catch((error) => {
-        console.error('Failed to initialize RevenueCat:', error);
+        logError(error, 'revenuecat_init');
         // Don't block app initialization if RevenueCat fails
       });
       // Set user context for monitoring

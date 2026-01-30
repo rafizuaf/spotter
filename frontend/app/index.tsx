@@ -5,6 +5,7 @@ import { useAuthStore } from '../src/stores/authStore';
 import { userSettingsCollection } from '../src/db';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../src/hooks/useTheme';
+import { logError } from '../src/utils/errorHandler';
 
 export default function Index() {
   const { user, isInitialized } = useAuthStore();
@@ -29,7 +30,7 @@ export default function Index() {
           setNeedsOnboarding(true);
         }
       } catch (error) {
-        console.error('Error checking onboarding:', error);
+        logError(error, 'onboarding_check');
         // Default to needing onboarding if check fails
         setNeedsOnboarding(true);
       } finally {

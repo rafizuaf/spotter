@@ -7,6 +7,7 @@ import Papa from 'papaparse';
 import { Q } from '@nozbe/watermelondb';
 import { exercisesCollection } from '../../db';
 import { normalizeExerciseName, matchExercise } from './exerciseMatcher';
+import { logError } from '../../utils/errorHandler';
 import type { ExerciseLibraryEntry } from './exerciseMatcher';
 import type {
   GenericRow,
@@ -38,7 +39,7 @@ export async function parseGenericCsv(csvContent: string): Promise<ImportPreview
   });
 
   if (errors.length > 0) {
-    console.warn('[Generic import] CSV parse warnings:', errors);
+    logError(new Error(`CSV parse warnings: ${errors.length} errors`), 'genericImporter_parse');
   }
 
   const workoutGroups = new Map<string, GenericRow[]>();

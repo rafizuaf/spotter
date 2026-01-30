@@ -8,6 +8,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Q } from '@nozbe/watermelondb';
 import { userEntitlementsCollection } from '../../db';
+import { logError } from '../../utils/errorHandler';
 import type UserEntitlement from '../../db/models/UserEntitlement';
 
 const LAST_EXPORT_KEY = 'spotter_last_export_at';
@@ -57,7 +58,7 @@ export async function setLastExportAt(iso: string): Promise<void> {
   try {
     await SecureStore.setItemAsync(LAST_EXPORT_KEY, iso);
   } catch (e) {
-    console.warn('[exportLimits] Failed to persist last export:', e);
+    logError(e, 'exportLimits_setLastExport');
   }
 }
 

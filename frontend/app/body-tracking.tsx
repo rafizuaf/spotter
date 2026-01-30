@@ -17,6 +17,7 @@ import BodyLogForm from '../src/components/BodyLogForm';
 import BodyChart from '../src/components/BodyChart';
 import type UserBodyLog from '../src/db/models/UserBodyLog';
 import { useTheme } from '../src/hooks/useTheme';
+import { logError } from '../src/utils/errorHandler';
 
 export default function BodyTrackingScreen() {
   const { user } = useAuthStore();
@@ -50,7 +51,7 @@ export default function BodyTrackingScreen() {
     try {
       await syncDatabase();
     } catch (error) {
-      console.error('Error refreshing:', error);
+      logError(error, 'body_tracking_refresh');
     } finally {
       setRefreshing(false);
     }

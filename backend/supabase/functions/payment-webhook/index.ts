@@ -265,8 +265,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
  * Handle new purchase or renewal
  */
 async function handlePurchaseOrRenewal(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookPayload["event"]
 ): Promise<ProcessResult> {
   const tier = PRODUCT_TO_TIER[event.product_id];
@@ -326,8 +325,7 @@ async function handlePurchaseOrRenewal(
  * User keeps access until the end of their billing period
  */
 async function handleCancellation(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookPayload["event"]
 ): Promise<ProcessResult> {
   // Keep the tier but ensure valid_until is set to period end
@@ -361,8 +359,7 @@ async function handleCancellation(
  * Reverts user to FREE tier
  */
 async function handleExpiration(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookPayload["event"]
 ): Promise<ProcessResult> {
   const { error } = await supabase
@@ -393,8 +390,7 @@ async function handleExpiration(
  * Handle product change (upgrade/downgrade)
  */
 async function handleProductChange(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookPayload["event"]
 ): Promise<ProcessResult> {
   // Treat like a new purchase with the new product
@@ -406,8 +402,7 @@ async function handleProductChange(
  * Log but don't immediately downgrade (RevenueCat handles grace period)
  */
 async function handleBillingIssue(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookPayload["event"]
 ): Promise<ProcessResult> {
   console.warn(`Billing issue for ${event.app_user_id}, product ${event.product_id}`);
@@ -424,8 +419,7 @@ async function handleBillingIssue(
  * Log to subscription_history for audit trail
  */
 async function logSubscriptionHistory(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookPayload["event"],
   result: ProcessResult
 ): Promise<void> {

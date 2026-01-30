@@ -316,7 +316,6 @@ function getWeekStart(date: Date, timezone: string = "UTC"): string {
 /**
  * Calculate unique active days in a week
  */
-// deno-lint-ignore no-explicit-any
 async function calculateActiveDays(
   supabase: ReturnType<typeof createClient>,
   userId: string,
@@ -346,7 +345,6 @@ async function calculateActiveDays(
 /**
  * Update streak logs based on weekly activity
  */
-// deno-lint-ignore no-explicit-any
 async function updateStreaks(
   supabase: ReturnType<typeof createClient>,
   userId: string,

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
+import { logError } from '../utils/errorHandler';
 
 /**
  * Rest Timer Store
@@ -63,7 +64,7 @@ const loadSound = async (): Promise<Audio.Sound | null> => {
     );
     return sound;
   } catch (error) {
-    console.warn('Failed to load timer sound:', error);
+    logError(error, 'restTimer_loadSound');
     return null;
   }
 };
@@ -78,7 +79,7 @@ const playTimerSound = async (): Promise<void> => {
       await timerSound.playAsync();
     }
   } catch (error) {
-    console.warn('Failed to play timer sound:', error);
+    logError(error, 'restTimer_playSound');
   }
 };
 
@@ -215,7 +216,7 @@ export const useRestTimerStore = create<RestTimerState>((set, get) => ({
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
-        console.warn('Haptic feedback failed:', error);
+        logError(error, 'restTimer_hapticFeedback');
       }
     }
 

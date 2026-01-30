@@ -11,6 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { database, workoutsCollection, workoutSetsCollection, userLevelsCollection } from '../db';
 import { Q } from '@nozbe/watermelondb';
+import { logError } from '../utils/errorHandler';
 import type Workout from '../db/models/Workout';
 import type WorkoutSet from '../db/models/WorkoutSet';
 import type UserLevel from '../db/models/UserLevel';
@@ -161,17 +162,17 @@ export async function updateWidgetData(userId: string): Promise<void> {
     if (Platform.OS === 'ios') {
       // This would require a native module to write to App Group
       // For now, SecureStore is a placeholder
-      console.log('Widget data updated (iOS App Group write requires native module)');
+      // Note: Placeholder log removed - will be implemented when native module is added
     }
 
     // On Android, write to SharedPreferences (requires native module)
     if (Platform.OS === 'android') {
       // This would require a native module to write to SharedPreferences
       // For now, SecureStore is a placeholder
-      console.log('Widget data updated (Android SharedPreferences write requires native module)');
+      // Note: Placeholder log removed - will be implemented when native module is added
     }
   } catch (error) {
-    console.error('Error updating widget data:', error);
+    logError(error, 'widgetData_update');
   }
 }
 
@@ -184,7 +185,7 @@ export async function getWidgetData(): Promise<WidgetWorkoutStats | null> {
     if (!data) return null;
     return JSON.parse(data) as WidgetWorkoutStats;
   } catch (error) {
-    console.error('Error reading widget data:', error);
+    logError(error, 'widgetData_get');
     return null;
   }
 }

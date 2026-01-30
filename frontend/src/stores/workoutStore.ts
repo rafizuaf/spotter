@@ -6,6 +6,9 @@ import { v4 as uuid } from 'uuid';
 import { Q } from '@nozbe/watermelondb';
 import type Workout from '../db/models/Workout';
 import type WorkoutSetModel from '../db/models/WorkoutSet';
+import { logError } from '../utils/errorHandler';
+import { trackEvent } from '../services/monitoring';
+import { announceForAccessibility } from '../utils/accessibility';
 
 export interface WorkoutSet {
   id: string;
@@ -183,22 +186,50 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
 
   toggleSetComplete: (exerciseEntryId: string, setId: string) => {
-    set((state) => ({
-      exercises: state.exercises.map((ex) => {
+    set((state) => {
+      let completedSetCount = 0;
+      let totalSetCount = 0;
+      let exerciseName = '';
+
+      const updatedExercises = state.exercises.map((ex) => {
         if (ex.id === exerciseEntryId) {
+          exerciseName = ex.name;
           return {
             ...ex,
             sets: ex.sets.map((s) => {
+              totalSetCount++;
               if (s.id === setId) {
-                return { ...s, completed: !s.completed };
+                const newCompleted = !s.completed;
+                if (newCompleted) {
+                  completedSetCount++;
+                }
+                return { ...s, completed: newCompleted };
+              }
+              if (s.completed) {
+                completedSetCount++;
               }
               return s;
             }),
           };
+        } else {
+          ex.sets.forEach((s) => {
+            totalSetCount++;
+            if (s.completed) completedSetCount++;
+          });
         }
         return ex;
-      }),
-    }));
+      });
+
+      // Announce set completion
+      const remainingSets = totalSetCount - completedSetCount;
+      if (completedSetCount > 0 && remainingSets > 0) {
+        announceForAccessibility(`Set completed. ${remainingSets} sets remaining.`);
+      } else if (completedSetCount === totalSetCount && totalSetCount > 0) {
+        announceForAccessibility(`All sets completed for ${exerciseName}.`);
+      }
+
+      return { exercises: updatedExercises };
+    });
   },
 
   quickCompleteSet: (exerciseEntryId: string, setId: string, weight: string, reps: string) => {
@@ -311,12 +342,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
               body: { workout_id: workoutServerId },
             });
           } catch (challengeError) {
-            console.warn('Challenge score update failed:', challengeError);
+            logError(challengeError, 'workoutStore_challengeScoreUpdate');
             // Don't fail workout completion if challenge update fails
           }
         }
       } catch (syncError) {
-        console.warn('Sync failed, will retry later:', syncError);
+        logError(syncError, 'workoutStore_postWorkoutSync');
         // Don't fail the workout save if sync fails - it will sync later
       }
 
@@ -380,6 +411,16 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
             body: { workoutId: workoutServerId },
           });
           prCount = prData?.prCount || 0;
+          
+          // Announce PR detection
+          if (prCount > 0 && prData?.prs) {
+            const prExercises = prData.prs.map((pr: { exerciseName?: string }) => pr.exerciseName || 'exercise').join(', ');
+            if (prCount === 1) {
+              announceForAccessibility(`Personal record on ${prExercises}!`);
+            } else {
+              announceForAccessibility(`${prCount} personal records detected!`);
+            }
+          }
 
           // 4. Unlock badges
           const { data: badgeData } = await supabase.functions.invoke('unlock-badge', {
@@ -397,7 +438,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
                 },
               });
             } catch (postError) {
-              console.warn('Failed to create social post:', postError);
+              logError(postError, 'workoutStore_createSocialPost');
               // Don't fail if social post creation fails
             }
           }
@@ -406,11 +447,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           try {
             await syncDatabase();
           } catch (finalSyncError) {
-            console.warn('Final sync failed:', finalSyncError);
+            logError(finalSyncError, 'workoutStore_finalSync');
           }
         }
       } catch (gamificationError) {
-        console.warn('Gamification functions failed:', gamificationError);
+        logError(gamificationError, 'workoutStore_gamification');
         // Don't fail the workout save if gamification fails
       }
 
@@ -426,6 +467,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         routineOriginId: null,
       });
 
+      // Announce workout completion
+      announceForAccessibility('Workout completed successfully');
+
       return {
         success: true,
         workoutId: workoutServerId,
@@ -438,7 +482,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         },
       };
     } catch (error) {
-      console.error('Error finishing workout:', error);
+      logError(error, 'workoutStore_finishWorkout');
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to save workout',

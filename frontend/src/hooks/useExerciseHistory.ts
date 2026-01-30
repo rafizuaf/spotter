@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Q } from '@nozbe/watermelondb';
 import { workoutSetsCollection } from '../db';
 import { getSuggestedWeight, type Gender } from '../constants/startingWeights';
+import { logError } from '../utils/errorHandler';
 import type WorkoutSet from '../db/models/WorkoutSet';
 
 export interface ExerciseHistory {
@@ -92,7 +93,7 @@ export function useExerciseHistory(
         setLastWorkoutReps(null);
       }
     } catch (error) {
-      console.error('Error fetching exercise history:', error);
+      logError(error, 'useExerciseHistory_fetch');
       setLastWorkoutWeight(null);
       setLastWorkoutReps(null);
     } finally {

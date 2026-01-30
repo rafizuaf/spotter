@@ -3,6 +3,7 @@ import { Q } from '@nozbe/watermelondb';
 import { userEntitlementsCollection } from '../db';
 import { syncDatabase } from '../db/sync';
 import { purchasePackage, restorePurchases, type PurchasesPackage } from '../services/purchases';
+import { logError } from '../utils/errorHandler';
 import type UserEntitlement from '../db/models/UserEntitlement';
 
 export type SubscriptionTier = 'FREE' | 'PRO' | 'ELITE';
@@ -56,7 +57,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       await get().refresh(userId);
       set({ isInitialized: true });
     } catch (error) {
-      console.error('Subscription initialization error:', error);
+      logError(error, 'subscriptionStore_initialize');
       set({
         isLoading: false,
         isInitialized: true,
@@ -117,7 +118,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error('Subscription refresh error:', error);
+      logError(error, 'subscriptionStore_refresh');
       set({
         isLoading: false,
         error: 'Failed to refresh subscription',
@@ -159,7 +160,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Purchase failed';
-      console.error('Purchase error:', error);
+      logError(error, 'subscriptionStore_purchase');
       set({ isLoading: false, error: errorMessage });
       return { success: false, error: errorMessage };
     }
@@ -186,7 +187,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Restore failed';
-      console.error('Restore error:', error);
+      logError(error, 'subscriptionStore_restore');
       set({ isLoading: false, error: errorMessage });
       return { success: false, error: errorMessage };
     }

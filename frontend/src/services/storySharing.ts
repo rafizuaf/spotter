@@ -10,6 +10,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import ViewShot from 'react-native-view-shot';
+import { logError } from '../utils/errorHandler';
 
 export type StoryType = 'WORKOUT' | 'PR' | 'ACHIEVEMENT' | 'MONTHLY_ARCHETYPE';
 
@@ -66,7 +67,7 @@ export async function generateStoryImage(
 
     return uri;
   } catch (error) {
-    console.error('Error generating story image:', error);
+    logError(error, 'storySharing_generateImage');
     throw error;
   }
 }
@@ -83,7 +84,7 @@ export async function saveToPhotos(imageUri: string): Promise<void> {
 
     await MediaLibrary.saveToLibraryAsync(imageUri);
   } catch (error) {
-    console.error('Error saving to photos:', error);
+    logError(error, 'storySharing_saveToPhotos');
     throw error;
   }
 }
@@ -107,7 +108,7 @@ export async function shareToInstagram(imageUri: string): Promise<void> {
       dialogTitle: 'Share to Instagram Stories',
     });
   } catch (error) {
-    console.error('Error sharing to Instagram:', error);
+    logError(error, 'storySharing_shareToInstagram');
     throw error;
   }
 }
@@ -127,7 +128,7 @@ export async function copyToClipboard(imageUri: string): Promise<void> {
     // For now, we'll just save to photos and let user manually share
     await saveToPhotos(imageUri);
   } catch (error) {
-    console.error('Error copying to clipboard:', error);
+    logError(error, 'storySharing_copyToClipboard');
     throw error;
   }
 }

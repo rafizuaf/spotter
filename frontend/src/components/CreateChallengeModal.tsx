@@ -22,6 +22,7 @@ import { useTheme } from '../hooks/useTheme';
 import type { ChallengeType, ChallengeVisibility } from '../db/models/Challenge';
 import { CHALLENGE_TYPES, CHALLENGE_VISIBILITIES } from '../db/models/Challenge';
 import { useChallengeStore } from '../stores/challengeStore';
+import { logError } from '../utils/errorHandler';
 
 interface CreateChallengeModalProps {
   visible: boolean;
@@ -89,7 +90,7 @@ export default function CreateChallengeModal({
       onClose();
     } catch (err) {
       // Error is handled by store
-      console.error('Error creating challenge:', err);
+      logError(err, 'CreateChallengeModal_create');
     }
   };
 

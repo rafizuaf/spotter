@@ -29,7 +29,6 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     logError(error, 'ErrorBoundary');
-    console.error('Error boundary caught error:', error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 

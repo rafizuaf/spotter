@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase, signIn, signUp, signOut, getSession } from '../services/supabase';
 import { initializePurchases, resetPurchases } from '../services/purchases';
+import { logError } from '../utils/errorHandler';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthState {
@@ -56,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       });
     } catch (error) {
-      console.error('Auth initialization error:', error);
+      logError(error, 'authStore_initialize');
       set({
         isInitialized: true,
         isLoading: false,
@@ -74,7 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Initialize RevenueCat after successful login
       if (user?.id) {
         initializePurchases(user.id).catch((error) => {
-          console.error('Failed to initialize RevenueCat after login:', error);
+          logError(error, 'authStore_initPurchasesAfterLogin');
           // Don't block login if RevenueCat fails
         });
       }
@@ -103,7 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Initialize RevenueCat after successful registration
       if (user?.id) {
         initializePurchases(user.id).catch((error) => {
-          console.error('Failed to initialize RevenueCat after registration:', error);
+          logError(error, 'authStore_initPurchasesAfterRegister');
           // Don't block registration if RevenueCat fails
         });
       }
@@ -129,7 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Reset RevenueCat before signing out
       resetPurchases().catch((error) => {
-        console.error('Failed to reset RevenueCat on logout:', error);
+        logError(error, 'authStore_resetPurchasesOnLogout');
         // Don't block logout if RevenueCat fails
       });
 

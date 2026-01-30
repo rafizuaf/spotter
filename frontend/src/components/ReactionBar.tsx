@@ -10,6 +10,7 @@ import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import ReactionButton from './ReactionButton';
 import { reactToPost } from '../services/reactions';
+import { logError } from '../utils/errorHandler';
 import type { ReactionType } from '../db/models/PostReaction';
 import { REACTION_TYPES } from '../db/models/PostReaction';
 import * as Haptics from 'expo-haptics';
@@ -73,7 +74,7 @@ export default function ReactionBar({
         onReaction(type, response.action);
       }
     } catch (error) {
-      console.error('Error reacting to post:', error);
+      logError(error, 'ReactionBar_react');
       // Revert optimistic update on error
       setOptimisticUserReaction(userReaction);
       setOptimisticReactions(reactions);

@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { hasPendingChanges, syncDatabase } from '../db/sync';
 import { useAuthStore } from '../stores/authStore';
+import { logError } from '../utils/errorHandler';
 
 interface SyncStatusIndicatorProps {
   /** Show full status or just icon */
@@ -38,7 +39,7 @@ export default function SyncStatusIndicator({
         const pending = await hasPendingChanges();
         setHasPending(pending);
       } catch (err) {
-        console.error('Error checking pending changes:', err);
+        logError(err, 'SyncStatusIndicator_checkPending');
       }
     };
 
@@ -65,7 +66,7 @@ export default function SyncStatusIndicator({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Sync failed';
       setError(errorMessage);
-      console.error('Sync error:', err);
+      logError(err, 'SyncStatusIndicator_sync');
     } finally {
       setIsSyncing(false);
     }

@@ -4,6 +4,7 @@ import { Q } from '@nozbe/watermelondb';
 import { useAuthStore } from '../stores/authStore';
 import { userSettingsCollection } from '../db';
 import { colors, colorsLight, type Colors } from '../utils/colors';
+import { logError } from '../utils/errorHandler';
 import type UserSettings from '../db/models/UserSettings';
 
 type ThemePreference = 'dark' | 'light' | 'system';
@@ -43,7 +44,7 @@ export function useTheme(): Colors {
                     setThemePreference(preference);
                 }
             } catch (error) {
-                console.error('Error loading theme preference:', error);
+                logError(error, 'useTheme_loadPreference');
             } finally {
                 setIsLoading(false);
             }
@@ -106,7 +107,7 @@ export function useThemePreference(): ThemePreference {
                     setThemePreference(preference);
                 }
             } catch (error) {
-                console.error('Error loading theme preference:', error);
+                logError(error, 'useThemePreference_load');
             }
         };
 
