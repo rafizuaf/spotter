@@ -16,12 +16,26 @@ CREATE INDEX IF NOT EXISTS idx_routines_public_usage ON routines(is_public, usag
 WHERE deleted_at IS NULL AND is_public = TRUE;
 
 -- ============================================================================
+-- CREATE SYSTEM USER FOR CURATED TEMPLATES
+-- ============================================================================
+-- Curated templates need a valid user_id (FK to users). Create a system user
+-- that owns them. handle_new_user trigger will create public.users, user_settings, user_levels.
+INSERT INTO auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+VALUES (
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  'authenticated',
+  'authenticated',
+  'system@spotter.local',
+  '{"provider": "email", "providers": ["email"]}'::jsonb,
+  '{"username": "spotter_system"}'::jsonb,
+  NOW(),
+  NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
 -- SEED CURATED TEMPLATES
 -- ============================================================================
-
--- Insert curated templates (these will be owned by a system user or marked as public)
--- Note: In production, these should be owned by a system/admin user account
--- For now, we'll insert them with a placeholder user_id (will need to be updated)
 
 -- Full Body Push/Pull/Legs Split
 INSERT INTO routines (id, user_id, name, notes, is_public, usage_count, created_at, updated_at)

@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_feature_flags_enabled ON global_feature_flags(ena
 CREATE TRIGGER set_feature_flags_updated_at
   BEFORE UPDATE ON global_feature_flags
   FOR EACH ROW
-  EXECUTE FUNCTION set_updated_at();
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
 -- RLS POLICIES
