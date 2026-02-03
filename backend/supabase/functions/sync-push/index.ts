@@ -31,6 +31,7 @@ interface TableChanges {
 interface PushRequest {
   changes: Record<string, TableChanges>;
   lastPulledAt: number | null;
+  idempotencyKey?: string; // A6: Optional idempotency key for deduplication
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -109,7 +110,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // Parse request body
-    const { changes }: PushRequest = await req.json();
+    const { changes, idempotencyKey }: PushRequest = await req.json();
+
+    // A6: Check idempotency key (if provided)
+    if (idempotencyKey) {
+      const { data: cachedResponse } = await supabaseAdmin
+        .from("idempotency_keys")
+        .select("response_body")
+        .eq("idempotency_key", idempotencyKey)
+        .eq("user_id", user.id)
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (cachedResponse) {
+        // Return cached response (deduplicate duplicate request)
+        return new Response(JSON.stringify(cachedResponse.response_body), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // SECURITY: Get user's subscription tier for limit enforcement
     const { data: entitlement } = await supabaseAdmin
@@ -414,9 +433,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    // A6: Store idempotency key response (if provided)
+    const responseBody = { success: true };
+    const response = new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
+    if (idempotencyKey) {
+      // Store response for future duplicate requests (TTL: 24 hours)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      try {
+        await supabaseAdmin.from("idempotency_keys").insert({
+          idempotency_key: idempotencyKey,
+          user_id: user.id,
+          response_body: responseBody,
+          expires_at: expiresAt.toISOString(),
+        });
+      } catch (insertError) {
+        // Log but don't fail the request if idempotency key storage fails
+        console.error("Error storing idempotency key:", insertError);
+      }
+    }
+
+    return response;
   } catch (error) {
     console.error("Sync push error:", error);
     const errorMessage =

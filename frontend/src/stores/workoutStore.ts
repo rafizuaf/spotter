@@ -9,6 +9,8 @@ import type WorkoutSetModel from '../db/models/WorkoutSet';
 import { logError } from '../utils/errorHandler';
 import { trackEvent } from '../services/monitoring';
 import { announceForAccessibility } from '../utils/accessibility';
+import { useSyncStatusStore } from './syncStatusStore';
+import { CircuitOpenError } from '../utils/circuitBreaker';
 
 export interface WorkoutSet {
   id: string;
@@ -168,10 +170,66 @@ async function saveWorkoutToLocal(
   }
 }
 
-async function syncWorkout(): Promise<void> {
+/**
+ * B2: Background sync function - does not throw errors
+ * Used for fire-and-forget sync in optimistic UI flow
+ */
+async function syncWorkoutInBackground(idempotencyKey?: string): Promise<void> {
   // A2: Single XP path - gamification (XP, level, PRs, badges, social post) runs server-side in sync-push
+  // A6: Pass idempotency key to prevent duplicate processing on retry
   try {
-    await syncDatabase();
+    await syncDatabase({ idempotencyKey });
+    
+    // B2: Clear any previous sync errors on success
+    useSyncStatusStore.getState().clearError();
+    
+    // Phase 2G: Update challenge scores after workout sync completes
+    const state = useWorkoutStore.getState();
+    const workoutId = state.workoutId;
+    if (workoutId) {
+      try {
+        await supabase.functions.invoke('update-challenge-scores', {
+          body: { workout_id: workoutId },
+        });
+      } catch (challengeError) {
+        logError(challengeError, 'workoutStore_challengeScoreUpdate');
+        // Don't fail workout completion if challenge update fails
+      }
+    }
+
+    // Pull updated gamification data (XP, levels, badges, PRs) from server
+    // This provides immediate feedback without blocking workout completion
+    try {
+      await syncDatabase();
+    } catch (pullError) {
+      logError(pullError, 'workoutStore_postSyncPull');
+      // Don't fail if pull fails - data will sync on next sync cycle
+    }
+  } catch (syncError) {
+    logError(syncError, 'workoutStore_postWorkoutSync');
+    // B2: Store error in sync status store for UI to display
+    // B3: Handle circuit breaker errors specially
+    let errorMessage: string;
+    if (syncError instanceof CircuitOpenError) {
+      const retryAfterSeconds = Math.ceil(syncError.retryAfterMs / 1000);
+      errorMessage = `Sync paused; will retry shortly. (Retry in ${retryAfterSeconds}s)`;
+    } else {
+      errorMessage = syncError instanceof Error ? syncError.message : 'Sync failed. Saved locally; will sync when online.';
+    }
+    useSyncStatusStore.getState().setLastError(errorMessage);
+    // Don't throw - this is fire-and-forget
+  }
+}
+
+/**
+ * Legacy sync function - throws errors (used by non-optimistic flows)
+ * @deprecated Use syncWorkoutInBackground for optimistic UI flows
+ */
+async function syncWorkout(idempotencyKey?: string): Promise<void> {
+  // A2: Single XP path - gamification (XP, level, PRs, badges, social post) runs server-side in sync-push
+  // A6: Pass idempotency key to prevent duplicate processing on retry
+  try {
+    await syncDatabase({ idempotencyKey });
     
     // Phase 2G: Update challenge scores after workout sync completes
     const state = useWorkoutStore.getState();
@@ -592,10 +650,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
         throw new Error(saveResult.error);
       }
 
-      // A1: Extract function 2 - Sync workout to server
-      await syncWorkout();
-
-      // B1: Transition to completed state
+      // B2: Transition to completed state immediately (optimistic UI)
+      // User sees success within ~500ms without waiting for sync
       const completedState: WorkoutStateStatus = {
         status: 'completed',
         workoutId: saveResult.workoutId,
@@ -607,6 +663,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
 
       // Announce workout completion
       announceForAccessibility('Workout completed successfully');
+
+      // B2: Fire-and-forget background sync (does not block UI)
+      // A6: Generate idempotency key before sync (ensures deduplication on retry)
+      const idempotencyKey = uuid();
+      syncWorkoutInBackground(idempotencyKey).catch((err) => {
+        // Error already handled in syncWorkoutInBackground (stored in syncStatusStore)
+        logError(err, 'workoutStore_finishWorkout_backgroundSync');
+      });
 
       return {
         success: true,

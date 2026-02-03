@@ -3,6 +3,7 @@ import { Q } from '@nozbe/watermelondb';
 import { database } from './index';
 import { supabase } from '../services/supabase';
 import { withRetry, parseError, ErrorCodes, logError } from '../utils/errorHandler';
+import { circuitBreaker, CircuitOpenError } from '../utils/circuitBreaker';
 
 // Tables to sync
 const SYNC_TABLES = [
@@ -60,6 +61,7 @@ interface SyncPushPayload {
     deleted: string[];
   }>;
   lastPulledAt: number | null;
+  idempotencyKey?: string; // A6: Optional idempotency key for deduplication
 }
 
 /**
@@ -84,11 +86,12 @@ async function pullChanges({ lastPulledAt }: { lastPulledAt: number | null }): P
 /**
  * Push local changes to server
  */
-async function pushChanges({ changes, lastPulledAt }: SyncPushPayload): Promise<void> {
+async function pushChanges({ changes, lastPulledAt, idempotencyKey }: SyncPushPayload): Promise<void> {
   const { error } = await supabase.functions.invoke('sync-push', {
     body: {
       changes,
       lastPulledAt,
+      ...(idempotencyKey && { idempotencyKey }), // A6: Include idempotency key if provided
     },
   });
 
@@ -103,9 +106,25 @@ async function pushChanges({ changes, lastPulledAt }: SyncPushPayload): Promise<
  * Call this to sync local database with server
  * 
  * Includes automatic retry with exponential backoff for network errors
+ * 
+ * @param options - Optional sync options
+ * @param options.idempotencyKey - Optional idempotency key for deduplicating duplicate requests (A6)
  */
-export async function syncDatabase(): Promise<void> {
+export async function syncDatabase(options?: { idempotencyKey?: string }): Promise<void> {
+  // B3: Check circuit breaker before attempting sync
+  if (!circuitBreaker.canAttempt()) {
+    const cooldownRemaining = circuitBreaker.getCooldownRemaining();
+    const retryAfterSeconds = Math.ceil(cooldownRemaining / 1000);
+    throw new CircuitOpenError(
+      `Sync paused; will retry shortly. (Retry in ${retryAfterSeconds}s)`,
+      cooldownRemaining
+    );
+  }
+
   try {
+    // A6: Capture idempotencyKey from options for use in pushChanges closure
+    const idempotencyKey = options?.idempotencyKey;
+
     await withRetry(
       async () => {
         await synchronize({
@@ -119,7 +138,8 @@ export async function syncDatabase(): Promise<void> {
             };
           },
           pushChanges: async ({ changes, lastPulledAt }) => {
-            await pushChanges({ changes, lastPulledAt });
+            // A6: Pass idempotencyKey via closure
+            await pushChanges({ changes, lastPulledAt, idempotencyKey });
           },
           migrationsEnabledAtVersion: 1,
         });
@@ -131,7 +151,16 @@ export async function syncDatabase(): Promise<void> {
         context: 'sync',
       }
     );
+
+    // B3: Record success (reset circuit breaker)
+    circuitBreaker.recordSuccess();
   } catch (error) {
+    // B3: Record failure (increment circuit breaker failure count)
+    // Only record failure if it's not a CircuitOpenError (which is already handled)
+    if (!(error instanceof CircuitOpenError)) {
+      circuitBreaker.recordFailure();
+    }
+
     const appError = parseError(error);
     logError(appError, 'sync_database');
     throw appError;

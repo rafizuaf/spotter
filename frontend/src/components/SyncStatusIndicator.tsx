@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { hasPendingChanges, syncDatabase } from '../db/sync';
 import { useAuthStore } from '../stores/authStore';
+import { useSyncStatusStore } from '../stores/syncStatusStore';
+import { CircuitOpenError } from '../utils/circuitBreaker';
 import { logError } from '../utils/errorHandler';
 
 interface SyncStatusIndicatorProps {
@@ -25,6 +27,7 @@ export default function SyncStatusIndicator({
 }: SyncStatusIndicatorProps) {
   const colors = useTheme();
   const { user } = useAuthStore();
+  const { lastError: backgroundSyncError, clearError } = useSyncStatusStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasPending, setHasPending] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
@@ -57,20 +60,33 @@ export default function SyncStatusIndicator({
 
     setIsSyncing(true);
     setError(null);
+    // B2: Clear background sync error when manually syncing
+    clearError();
 
     try {
       await syncDatabase();
       setHasPending(false);
       setLastSyncTime(new Date());
+      // B2: Clear background sync error on successful sync
+      clearError();
       onSyncComplete?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Sync failed';
-      setError(errorMessage);
+      // B3: Handle circuit breaker errors specially
+      if (err instanceof CircuitOpenError) {
+        const retryAfterSeconds = Math.ceil(err.retryAfterMs / 1000);
+        setError(`Sync paused; will retry shortly. (Retry in ${retryAfterSeconds}s)`);
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Sync failed';
+        setError(errorMessage);
+      }
       logError(err, 'SyncStatusIndicator_sync');
     } finally {
       setIsSyncing(false);
     }
   };
+
+  // B2: Combine manual sync error with background sync error
+  const displayError = error || backgroundSyncError;
 
   const formatLastSync = (): string => {
     if (!lastSyncTime) return 'Never synced';
@@ -118,10 +134,12 @@ export default function SyncStatusIndicator({
               <ActivityIndicator size="small" color={colors.primary} style={styles.icon} />
               <Text style={[styles.statusText, { color: colors.textPrimary }]}>Syncing...</Text>
             </>
-          ) : hasPending ? (
+          ) : hasPending || backgroundSyncError ? (
             <>
               <Ionicons name="cloud-upload-outline" size={20} color={colors.warning} style={styles.icon} />
-              <Text style={[styles.statusText, { color: colors.warning }]}>Pending changes</Text>
+              <Text style={[styles.statusText, { color: colors.warning }]}>
+                {backgroundSyncError ? 'Saved locally; sync pending' : 'Pending changes'}
+              </Text>
             </>
           ) : (
             <>
@@ -150,10 +168,23 @@ export default function SyncStatusIndicator({
         </Text>
       )}
 
-      {error && (
-        <Text style={[styles.error, { color: colors.error }]}>
-          {error}
-        </Text>
+      {displayError && (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.error, { color: colors.error }]}>
+            {displayError}
+          </Text>
+          {backgroundSyncError && (
+            <TouchableOpacity
+              onPress={handleSync}
+              style={styles.retryButton}
+              accessible={true}
+              accessibilityLabel="Retry sync"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.retryButtonText, { color: colors.primary }]}>Tap to retry</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </View>
   );
@@ -199,8 +230,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  errorContainer: {
+    marginTop: 4,
+  },
   error: {
     fontSize: 12,
+  },
+  retryButton: {
     marginTop: 4,
+  },
+  retryButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
