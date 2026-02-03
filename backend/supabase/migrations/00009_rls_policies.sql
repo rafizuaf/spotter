@@ -286,18 +286,41 @@ CREATE POLICY "Users can delete own blocks"
 -- ============================================
 -- Social Posts Policies
 -- ============================================
+-- SECURITY: Fixed to properly check FOLLOWERS visibility
+-- Users can see: own posts, PUBLIC workouts, FOLLOWERS workouts (if following)
+DROP POLICY IF EXISTS "Social posts viewable based on workout visibility" ON social_posts;
+
 CREATE POLICY "Social posts viewable based on workout visibility"
     ON social_posts FOR SELECT
     TO authenticated
     USING (
         deleted_at IS NULL
         AND (
+            -- Own posts
             user_id = auth.uid()
-            OR EXISTS (
-                SELECT 1 FROM workouts
-                WHERE workouts.id = social_posts.workout_id
-                AND workouts.visibility = 'PUBLIC'
-                AND workouts.deleted_at IS NULL
+            OR (
+                -- PUBLIC workouts
+                EXISTS (
+                    SELECT 1 FROM workouts
+                    WHERE workouts.id = social_posts.workout_id
+                    AND workouts.visibility = 'PUBLIC'
+                    AND workouts.deleted_at IS NULL
+                )
+            )
+            OR (
+                -- FOLLOWERS-only workouts (if user is following the post author)
+                EXISTS (
+                    SELECT 1 FROM workouts
+                    WHERE workouts.id = social_posts.workout_id
+                    AND workouts.visibility = 'FOLLOWERS'
+                    AND workouts.deleted_at IS NULL
+                )
+                AND EXISTS (
+                    SELECT 1 FROM follows
+                    WHERE follower_id = auth.uid()
+                    AND following_id = social_posts.user_id
+                    AND deleted_at IS NULL
+                )
             )
         )
         AND NOT EXISTS (

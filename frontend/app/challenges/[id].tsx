@@ -224,8 +224,39 @@ export default function ChallengeDetailScreen() {
           </View>
         </View>
 
+        {/* Challenge Results Banner (when completed) */}
+        {currentChallenge.status === 'COMPLETED' && isParticipating && userParticipant && (
+          <View style={[styles.resultsBanner, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+            <View style={styles.resultsBannerHeader}>
+              <Ionicons name="trophy" size={24} color={colors.primary} />
+              <Text style={[styles.resultsBannerTitle, { color: colors.textPrimary }]}>
+                {userParticipant.rank === 1 ? 'Challenge Won!' : 'Challenge Complete'}
+              </Text>
+            </View>
+            <View style={styles.resultsBannerContent}>
+              <View style={styles.resultsBannerItem}>
+                <Text style={[styles.resultsBannerLabel, { color: colors.textSecondary }]}>Final Rank</Text>
+                <Text style={[styles.resultsBannerValue, { color: colors.primary }]}>
+                  #{userParticipant.rank || '-'}
+                </Text>
+              </View>
+              <View style={styles.resultsBannerItem}>
+                <Text style={[styles.resultsBannerLabel, { color: colors.textSecondary }]}>XP Earned</Text>
+                <Text style={[styles.resultsBannerValue, { color: colors.primary }]}>
+                  {userParticipant.rank === 1 ? '+200' : userParticipant.rank === 2 ? '+100' : userParticipant.rank === 3 ? '+50' : '+25'} XP
+                </Text>
+              </View>
+            </View>
+            {userParticipant.rank === 1 && (
+              <Text style={[styles.resultsBannerMessage, { color: colors.textSecondary }]}>
+                🎉 Congratulations! You won this challenge!
+              </Text>
+            )}
+          </View>
+        )}
+
         {/* User's Participation Status */}
-        {isParticipating && userParticipant && (
+        {isParticipating && userParticipant && currentChallenge.status !== 'COMPLETED' && (
           <View style={[styles.userStatusCard, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}>
             <Text style={[styles.userStatusTitle, { color: colors.primary }]}>Your Progress</Text>
             <View style={styles.userStatusRow}>
@@ -374,6 +405,44 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
+  },
+  resultsBanner: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+  },
+  resultsBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  resultsBannerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+  },
+  resultsBannerContent: {
+    flexDirection: 'row',
+    gap: 32,
+    marginBottom: 8,
+  },
+  resultsBannerItem: {
+    flex: 1,
+  },
+  resultsBannerLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  resultsBannerValue: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  resultsBannerMessage: {
+    fontSize: 13,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   userStatusCard: {
     borderRadius: 12,

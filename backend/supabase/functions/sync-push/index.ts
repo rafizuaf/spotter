@@ -246,11 +246,132 @@ Deno.serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
+      // SECURITY: Enforce advanced program tier requirements
+      // Prevents FREE/PRO users from enrolling in Elite-only programs
+      if (table === "user_advanced_program_enrollments" && tableChanges.created.length > 0) {
+        for (const enrollment of tableChanges.created) {
+          const programId = (enrollment as { program_id?: string }).program_id;
+          if (programId) {
+            const { data: program } = await supabaseAdmin
+              .from("advanced_programs")
+              .select("required_tier")
+              .eq("id", programId)
+              .is("deleted_at", null)
+              .single();
+
+            if (program?.required_tier) {
+              const requiredTier = program.required_tier as "FREE" | "PRO" | "ELITE";
+              
+              // Check if user's tier meets requirement
+              if (
+                (requiredTier === "ELITE" && effectiveTier !== "ELITE") ||
+                (requiredTier === "PRO" && effectiveTier === "FREE")
+              ) {
+                return new Response(
+                  JSON.stringify({
+                    error: `This program requires ${requiredTier} tier. Your current tier is ${effectiveTier}.`,
+                    code: "TIER_REQUIRED",
+                    required_tier: requiredTier,
+                    current_tier: effectiveTier,
+                  }),
+                  {
+                    status: 403,
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                  }
+                );
+              }
+            }
+          }
+        }
+      }
+
+      // SECURITY: Verify workout_sets ownership before insert
+      // Prevents users from creating sets for other users' workouts
+      if (table === "workout_sets" && tableChanges.created.length > 0) {
+        const workoutIds = [
+          ...new Set(
+            tableChanges.created.map((s) => (s as { workout_id?: string }).workout_id).filter(
+              (id): id is string => typeof id === "string"
+            )
+          ),
+        ];
+
+        if (workoutIds.length > 0) {
+          const { data: workouts, error: workoutCheckError } = await supabaseAdmin
+            .from("workouts")
+            .select("id")
+            .in("id", workoutIds)
+            .eq("user_id", user.id)
+            .is("deleted_at", null);
+
+          if (workoutCheckError || !workouts || workouts.length !== workoutIds.length) {
+            return new Response(
+              JSON.stringify({
+                error: "Unauthorized: Some workouts do not belong to you",
+                code: "FORBIDDEN",
+              }),
+              {
+                status: 403,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          }
+        }
+      }
+
       // FIX: Batch upsert instead of loop (100 records = 1 query instead of 100)
       if (tableChanges.created.length > 0) {
         const serverRecords = tableChanges.created.map((record) =>
           prepareRecord(record, user.id, table)
         );
+
+        // SECURITY: Validate training maxes against user's PRs before insert
+        if (table === "user_training_maxes") {
+          for (const record of serverRecords) {
+            if (record._needs_tm_validation && record.exercise_id && record.training_max_kg) {
+              const exerciseId = record.exercise_id as string;
+              const trainingMaxKg = Number(record.training_max_kg);
+              
+              // Lookup user's highest 1RM for this exercise
+              // Check both is_pr flag and calculate from all sets
+              const { data: prSets } = await supabaseAdmin
+                .from("workout_sets")
+                .select("weight_kg, reps")
+                .eq("exercise_id", exerciseId)
+                .eq("is_pr", true)
+                .is("deleted_at", null)
+                .order("weight_kg", { ascending: false })
+                .limit(10); // Get top 10 PRs to find highest 1RM
+
+              let highest1RM = 0;
+              
+              if (prSets && prSets.length > 0) {
+                // Calculate 1RM for each PR set and find the highest
+                for (const prSet of prSets) {
+                  const oneRepMax = prSet.reps === 1 
+                    ? prSet.weight_kg 
+                    : prSet.weight_kg * (1 + prSet.reps / 30);
+                  highest1RM = Math.max(highest1RM, oneRepMax);
+                }
+              }
+              
+              // Only validate if user has PR history
+              if (highest1RM > 0) {
+                const maxAllowedTm = highest1RM * 1.2; // 120% of 1RM
+                
+                if (trainingMaxKg > maxAllowedTm) {
+                  console.warn(
+                    `Training max ${trainingMaxKg}kg exceeds 120% of 1RM (${highest1RM}kg) for exercise ${exerciseId}, capping to ${maxAllowedTm}kg`
+                  );
+                  record.training_max_kg = Math.round(maxAllowedTm);
+                }
+              }
+              
+              // Remove validation flag
+              delete record._needs_tm_validation;
+            }
+          }
+        }
 
         const { error } = await supabaseAdmin
           .from(table)
@@ -264,6 +385,123 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // Process updated records
       for (const record of tableChanges.updated) {
         const serverRecord = prepareRecord(record, user.id, table);
+
+        // SECURITY: Validate training maxes against user's PRs before update
+        if (table === "user_training_maxes" && serverRecord._needs_tm_validation && serverRecord.exercise_id && serverRecord.training_max_kg) {
+          const exerciseId = serverRecord.exercise_id as string;
+          const trainingMaxKg = Number(serverRecord.training_max_kg);
+          
+          // Lookup user's highest 1RM for this exercise
+          const { data: prSets } = await supabaseAdmin
+            .from("workout_sets")
+            .select("weight_kg, reps")
+            .eq("exercise_id", exerciseId)
+            .eq("is_pr", true)
+            .is("deleted_at", null)
+            .order("weight_kg", { ascending: false })
+            .limit(10);
+
+          let highest1RM = 0;
+          
+          if (prSets && prSets.length > 0) {
+            for (const prSet of prSets) {
+              const oneRepMax = prSet.reps === 1 
+                ? prSet.weight_kg 
+                : prSet.weight_kg * (1 + prSet.reps / 30);
+              highest1RM = Math.max(highest1RM, oneRepMax);
+            }
+          }
+          
+          if (highest1RM > 0) {
+            const maxAllowedTm = highest1RM * 1.2;
+            
+            if (trainingMaxKg > maxAllowedTm) {
+              console.warn(
+                `Training max ${trainingMaxKg}kg exceeds 120% of 1RM (${highest1RM}kg) for exercise ${exerciseId}, capping to ${maxAllowedTm}kg`
+              );
+              serverRecord.training_max_kg = Math.round(maxAllowedTm);
+            }
+          }
+          
+          delete serverRecord._needs_tm_validation;
+        }
+
+        // SECURITY: Check limits on updates (prevents restoring soft-deleted items to bypass limits)
+        if (table === "routines" && serverRecord.deleted_at === null) {
+          // Check if this is restoring a soft-deleted routine
+          const { data: existingRoutine } = await supabaseAdmin
+            .from("routines")
+            .select("deleted_at")
+            .eq("id", serverRecord.id)
+            .single();
+
+          if (existingRoutine?.deleted_at && serverRecord.deleted_at === null) {
+            // Restoring a routine - check limits
+            const { count: currentCount } = await supabaseAdmin
+              .from("routines")
+              .select("*", { count: "exact", head: true })
+              .eq("user_id", user.id)
+              .is("deleted_at", null);
+
+            const maxRoutines =
+              effectiveTier === "FREE"
+                ? 3
+                : effectiveTier === "PRO"
+                ? 10
+                : Infinity;
+
+            if ((currentCount ?? 0) >= maxRoutines) {
+              console.log(`Routine limit exceeded when restoring routine ${serverRecord.id}`);
+              continue; // Skip this update
+            }
+          }
+        }
+
+        // SECURITY: Check exercise limits on updates (prevents flipping is_custom to bypass limits)
+        if (table === "exercises") {
+          const { data: existingExercise } = await supabaseAdmin
+            .from("exercises")
+            .select("is_custom, created_by_user_id, deleted_at")
+            .eq("id", serverRecord.id)
+            .single();
+
+          if (existingExercise) {
+            // Check if user is trying to set is_custom = true on an exercise they didn't create
+            if (
+              serverRecord.is_custom === true &&
+              existingExercise.created_by_user_id !== user.id
+            ) {
+              console.log(`Cannot set is_custom=true on exercise not created by user`);
+              continue; // Skip this update
+            }
+
+            // Check if restoring soft-deleted exercise or flipping is_custom to true
+            if (
+              (existingExercise.deleted_at && serverRecord.deleted_at === null) ||
+              (!existingExercise.is_custom && serverRecord.is_custom === true)
+            ) {
+              // Count current custom exercises
+              const { count: currentCustomCount } = await supabaseAdmin
+                .from("exercises")
+                .select("*", { count: "exact", head: true })
+                .eq("created_by_user_id", user.id)
+                .eq("is_custom", true)
+                .is("deleted_at", null);
+
+              const maxCustomExercises =
+                effectiveTier === "FREE"
+                  ? 7
+                  : effectiveTier === "PRO"
+                  ? 50
+                  : Infinity;
+
+              if ((currentCustomCount ?? 0) >= maxCustomExercises) {
+                console.log(`Custom exercise limit exceeded when updating exercise ${serverRecord.id}`);
+                continue; // Skip this update
+              }
+            }
+          }
+        }
 
         // Verify ownership before update
         // Phase 2G: Handle different ownership fields
@@ -532,16 +770,25 @@ function prepareRecord(
     result.created_by_id = userId;
   }
 
-  // SECURITY: Validate workout timestamps (prevent future dates, ensure logical ordering)
+  // SECURITY: Strip is_pr from user updates - only detect-pr function can set this
+  // Prevents users from gaming PR leaderboards and badges
+  if (table === "workout_sets") {
+    delete result.is_pr;
+  }
+
+  // SECURITY: Validate workout timestamps (prevent future dates, ensure logical ordering, limit backdating)
   if (table === "workouts") {
     const serverNow = new Date().toISOString();
     const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // Validate started_at is not in the future (allow 5min grace for clock drift)
+    // Also limit backdating to 7 days to prevent leaderboard manipulation
     if (result.started_at) {
       const startedAt = new Date(result.started_at as string);
       const now = new Date();
       const fiveMinutesFromNowDate = new Date(now.getTime() + 5 * 60 * 1000);
+      const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
       if (startedAt > fiveMinutesFromNowDate) {
         // Client timestamp is in the future - use server time
@@ -549,23 +796,93 @@ function prepareRecord(
           `Workout started_at is in the future (${result.started_at}), using server time`
         );
         result.started_at = serverNow;
+      } else if (startedAt < sevenDaysAgoDate) {
+        // Limit backdating to 7 days to prevent leaderboard manipulation
+        console.warn(
+          `Workout started_at is too far in the past (${result.started_at}), limiting to 7 days`
+        );
+        result.started_at = sevenDaysAgo;
       }
     }
 
-    // Validate ended_at is not before started_at and not in the future
-    if (result.ended_at && result.started_at) {
+    // Validate ended_at is not before started_at, not in the future, and not too far in the past
+    if (result.ended_at) {
       const endedAt = new Date(result.ended_at as string);
-      const startedAt = new Date(result.started_at as string);
       const now = new Date();
       const fiveMinutesFromNowDate = new Date(now.getTime() + 5 * 60 * 1000);
+      const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-      if (endedAt < startedAt || endedAt > fiveMinutesFromNowDate) {
-        // Invalid timestamp - use server time
+      // SECURITY: Limit ended_at backdating to 7 days (prevents leaderboard manipulation)
+      if (endedAt < sevenDaysAgoDate) {
         console.warn(
-          `Workout ended_at is invalid (before started_at or in future), using server time`
+          `Workout ended_at is too far in the past (${result.ended_at}), limiting to 7 days`
         );
-        result.ended_at = serverNow;
+        result.ended_at = sevenDaysAgo;
+        endedAt.setTime(sevenDaysAgoDate.getTime());
       }
+
+      if (result.started_at) {
+        const startedAt = new Date(result.started_at as string);
+
+        if (endedAt < startedAt || endedAt > fiveMinutesFromNowDate) {
+          // Invalid timestamp - use server time
+          console.warn(
+            `Workout ended_at is invalid (before started_at or in future), using server time`
+          );
+          result.ended_at = serverNow;
+        }
+
+        // Validate minimum workout duration (1 minute) - flag suspiciously short workouts
+        const durationMs = endedAt.getTime() - startedAt.getTime();
+        const MIN_WORKOUT_DURATION_MS = 60 * 1000; // 1 minute
+        if (durationMs < MIN_WORKOUT_DURATION_MS) {
+          console.warn(
+            `Suspiciously short workout (${durationMs}ms) from user ${userId}`
+          );
+          // Don't reject, but log for monitoring
+        }
+      }
+    }
+  }
+
+  // SECURITY: Validate realistic volume values for workout_sets
+  // Prevents users from inflating leaderboards with impossible values (e.g., 1000kg x 500 reps)
+  if (table === "workout_sets") {
+    const MAX_WEIGHT_KG = 500; // 500kg max (beyond world records)
+    const MAX_REPS = 100; // 100 reps max (reasonable upper bound)
+    const MAX_VOLUME_PER_SET = 50000; // 50,000kg max per set (500kg x 100 reps)
+
+    const weightKg = result.weight_kg as number | null | undefined;
+    const reps = result.reps as number | null | undefined;
+
+    if (weightKg !== null && weightKg !== undefined && weightKg > MAX_WEIGHT_KG) {
+      console.warn(
+        `Weight exceeds maximum (${weightKg}kg > ${MAX_WEIGHT_KG}kg) for user ${userId}, capping to ${MAX_WEIGHT_KG}kg`
+      );
+      result.weight_kg = MAX_WEIGHT_KG;
+    }
+
+    if (reps !== null && reps !== undefined && reps > MAX_REPS) {
+      console.warn(
+        `Reps exceed maximum (${reps} > ${MAX_REPS}) for user ${userId}, capping to ${MAX_REPS}`
+      );
+      result.reps = MAX_REPS;
+    }
+
+    if (
+      weightKg !== null &&
+      weightKg !== undefined &&
+      reps !== null &&
+      reps !== undefined &&
+      weightKg * reps > MAX_VOLUME_PER_SET
+    ) {
+      console.warn(
+        `Volume per set exceeds maximum (${weightKg * reps}kg > ${MAX_VOLUME_PER_SET}kg) for user ${userId}, capping volume`
+      );
+      // Cap to maximum volume while maintaining ratio
+      const ratio = Math.min(MAX_WEIGHT_KG / weightKg, MAX_REPS / reps, MAX_VOLUME_PER_SET / (weightKg * reps));
+      result.weight_kg = Math.round(weightKg * ratio);
+      result.reps = Math.round(reps * ratio);
     }
   }
 
@@ -573,10 +890,47 @@ function prepareRecord(
     result.user_id = userId;
   }
 
-  // For exercises, set created_by_user_id
+  // For exercises, set created_by_user_id and sanitize name
   if (table === "exercises") {
     result.created_by_user_id = userId;
     result.is_custom = true;
+
+    // SECURITY: Sanitize exercise name to prevent XSS/injection
+    if (result.name && typeof result.name === "string") {
+      // Remove HTML tags and script content
+      let sanitizedName = String(result.name)
+        .replace(/<[^>]*>/g, "") // Remove HTML tags
+        .replace(/javascript:/gi, "") // Remove javascript: protocol
+        .replace(/on\w+\s*=/gi, "") // Remove event handlers (onclick=, etc.)
+        .trim();
+
+      // Enforce length limit (100 chars)
+      if (sanitizedName.length > 100) {
+        sanitizedName = sanitizedName.substring(0, 100);
+      }
+
+      // Ensure minimum length
+      if (sanitizedName.length < 1) {
+        sanitizedName = "Exercise"; // Fallback if all content was removed
+      }
+
+      result.name = sanitizedName;
+    }
+  }
+
+  // SECURITY: Validate training max against user's PRs
+  // Prevents users from setting unrealistically high training maxes (e.g., 500kg TM)
+  // Note: This is async validation, so we'll need to handle it in the calling code
+  // For now, we'll add a flag to indicate validation is needed
+  if (table === "user_training_maxes" && result.training_max_kg) {
+    const trainingMaxKg = Number(result.training_max_kg);
+    const exerciseId = result.exercise_id as string | undefined;
+    
+    if (trainingMaxKg > 0 && exerciseId) {
+      // Mark for validation - actual validation will happen in the processing loop
+      // We'll look up user's highest 1RM and cap TM at 120% of that
+      result._needs_tm_validation = true;
+    }
   }
 
   return result;

@@ -266,6 +266,7 @@ BEGIN
     WHERE started_at >= v_period_start
     AND started_at <= v_period_end
     AND ended_at IS NOT NULL
+    AND (ended_at - started_at) >= INTERVAL '5 minutes'  -- SECURITY: Minimum 5 minutes to prevent fake workouts
     AND deleted_at IS NULL
     GROUP BY user_id
     HAVING COUNT(*) > 0
@@ -415,6 +416,7 @@ BEGIN
         v_period_end
     FROM workouts
     WHERE ended_at IS NOT NULL
+    AND (ended_at - started_at) >= INTERVAL '5 minutes'  -- SECURITY: Minimum 5 minutes to prevent fake workouts
     AND deleted_at IS NULL
     GROUP BY user_id
     HAVING COUNT(*) > 0

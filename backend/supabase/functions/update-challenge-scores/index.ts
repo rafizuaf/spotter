@@ -242,23 +242,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
             })
             .eq("id", challenge.id);
 
-          // Notify the winner
-          const { data: userInfo } = await supabaseClient
-            .from("users")
-            .select("username")
-            .eq("id", user.id)
-            .single();
-
-          await supabaseAdmin
-            .from("notifications")
-            .insert({
-              recipient_id: user.id,
-              actor_id: user.id,
-              type: "CHALLENGE_WIN",
-              title: "Challenge Complete!",
-              body: `You won the challenge by reaching ${challenge.target_value}!`,
-              metadata: { challenge_id: challenge.id },
+          // Process rewards (XP, badges, notifications) via complete-challenge
+          // This handles all participants, not just the winner
+          try {
+            await supabaseAdmin.functions.invoke("complete-challenge", {
+              body: { challenge_id: challenge.id },
             });
+          } catch (rewardError) {
+            console.error("Error processing challenge rewards:", rewardError);
+            // Don't fail the whole operation if reward processing fails
+            // Rewards can be processed later via cron job
+          }
         }
       }
     }

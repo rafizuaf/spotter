@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -69,9 +70,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 2. Parse request
     const { query, limit = 20 }: SearchUsersRequest = await req.json();
 
-    if (!query || query.trim().length === 0) {
+    // SECURITY: Require minimum query length (prevents username enumeration)
+    if (!query || query.trim().length < 3) {
       return new Response(
-        JSON.stringify({ error: "Search query is required" }),
+        JSON.stringify({ 
+          error: "Search query must be at least 3 characters",
+          code: "INVALID_INPUT" 
+        }),
         {
           status: 400,
           headers: getResponseHeaders(corsHeaders),
@@ -82,11 +87,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // SECURITY: Cap limit to prevent abuse
     const cappedLimit = Math.min(limit, 50);
 
-    // 3. Use admin client for business logic
+    // 3. Use admin client for business logic and rate limiting
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
     );
+
+    // SECURITY: Rate limiting to prevent username enumeration attacks
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'search-users',
+      30, // max 30 searches per minute
+      60 * 1000,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": "30",
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
 
     // 4. Get list of blocked user IDs (both directions)
     const { data: blocks } = await supabaseAdmin

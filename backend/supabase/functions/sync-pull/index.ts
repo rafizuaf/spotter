@@ -7,6 +7,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -76,6 +77,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
         status: 401,
         headers: getResponseHeaders(corsHeaders),
       });
+    }
+
+    // SECURITY: Rate limiting to prevent rapid polling and DoS
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
+    );
+
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'sync-pull',
+      RATE_LIMITS['sync-pull'].maxRequests,
+      RATE_LIMITS['sync-pull'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['sync-pull'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
     }
 
     // Parse request body

@@ -5,7 +5,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
-import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {

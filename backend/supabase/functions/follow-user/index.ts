@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -43,6 +44,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // SECURITY: Rate limiting to prevent spam
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
+    );
+
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'follow-user',
+      RATE_LIMITS['follow-user'].maxRequests,
+      RATE_LIMITS['follow-user'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['follow-user'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
+
     // 2. Parse request
     const { followingId }: FollowUserRequest = await req.json();
 
@@ -67,11 +102,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // 4. Use admin client for business logic
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
-    );
+    // 4. Use admin client for business logic (already created above for rate limiting)
 
     // 5. Check if blocked (either direction)
     const { data: blocks } = await supabaseAdmin
@@ -104,7 +135,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (existingFollow) {
       // If soft-deleted, restore it by setting deleted_at to null
+      // SECURITY: Re-check blocks before restoring (prevents bypassing block)
       if (existingFollow.deleted_at) {
+        // Re-check if users are blocked (either direction) before restoring
+        const { data: blocks } = await supabaseAdmin
+          .from("user_blocks")
+          .select("id")
+          .or(
+            `and(blocker_id.eq.${user.id},blocked_id.eq.${followingId}),and(blocker_id.eq.${followingId},blocked_id.eq.${user.id})`
+          )
+          .limit(1);
+
+        if (blocks && blocks.length > 0) {
+          return new Response(
+            JSON.stringify({ error: "Cannot follow this user" }),
+            {
+              status: 403,
+              headers: getResponseHeaders(corsHeaders),
+            }
+          );
+        }
+
         const { data: restoredFollow, error: restoreError } = await supabaseAdmin
           .from("follows")
           .update({ deleted_at: null, updated_at: new Date().toISOString() })
@@ -145,26 +196,41 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // 7. Create notification for the followed user
-    const { data: followerUser } = await supabaseAdmin
-      .from("users")
-      .select("username")
-      .eq("id", user.id)
-      .single();
-
-    const username = followerUser?.username || "Someone";
-
-    await supabaseAdmin
+    // SECURITY: Add 24-hour cooldown to prevent follow/unfollow spam
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data: recentNotification } = await supabaseAdmin
       .from("notifications")
-      .insert({
-        recipient_id: followingId,
-        actor_id: user.id,
-        type: "FOLLOW",
-        metadata: JSON.stringify({ followId }),
-        title: "New Follower",
-        body: `${username} started following you`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+      .select("id")
+      .eq("recipient_id", followingId)
+      .eq("actor_id", user.id)
+      .eq("type", "FOLLOW")
+      .gte("created_at", twentyFourHoursAgo)
+      .maybeSingle();
+
+    // Only create notification if no recent follow notification exists (24-hour cooldown)
+    if (!recentNotification) {
+      const { data: followerUser } = await supabaseAdmin
+        .from("users")
+        .select("username")
+        .eq("id", user.id)
+        .single();
+
+      const username = followerUser?.username || "Someone";
+
+      await supabaseAdmin
+        .from("notifications")
+        .insert({
+          recipient_id: followingId,
+          actor_id: user.id,
+          type: "FOLLOW",
+          metadata: JSON.stringify({ followId }),
+          title: "New Follower",
+          body: `${username} started following you`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+    }
 
     // 8. Return success
     return new Response(

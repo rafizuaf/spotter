@@ -2,6 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -92,6 +93,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
     );
+
+    // SECURITY: Rate limiting to prevent rapid day completion spam
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'complete-program-day',
+      RATE_LIMITS['complete-program-day'].maxRequests,
+      RATE_LIMITS['complete-program-day'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['complete-program-day'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
 
     const {
       enrollmentId,
@@ -218,10 +248,78 @@ Deno.serve(async (req: Request): Promise<Response> => {
         progressUpdate.lesson_read_at = now;
       }
       if (workoutCompleted && !typedProgress.workout_completed_at) {
-        progressUpdate.workout_completed_at = now;
-        if (workoutId) {
-          progressUpdate.workout_id = workoutId;
+        // SECURITY: Validate workoutId when marking workout as completed
+        // Prevents users from completing program days without actual workouts
+        if (!workoutId) {
+          return new Response(
+            JSON.stringify({
+              error: "workoutId is required when workoutCompleted is true",
+              code: "INVALID_INPUT",
+            }),
+            {
+              status: 400,
+              headers: getResponseHeaders(corsHeaders),
+            }
+          );
         }
+
+        // Verify workout exists, belongs to user, is completed, and has sets
+        const { data: workout, error: workoutError } = await supabaseAdmin
+          .from("workouts")
+          .select("id, user_id, ended_at")
+          .eq("id", workoutId)
+          .eq("user_id", user.id)
+          .is("deleted_at", null)
+          .single();
+
+        if (workoutError || !workout) {
+          return new Response(
+            JSON.stringify({
+              error: "Workout not found or does not belong to you",
+              code: "NOT_FOUND",
+            }),
+            {
+              status: 404,
+              headers: getResponseHeaders(corsHeaders),
+            }
+          );
+        }
+
+        if (!workout.ended_at) {
+          return new Response(
+            JSON.stringify({
+              error: "Workout must be completed (ended_at must be set)",
+              code: "INVALID_INPUT",
+            }),
+            {
+              status: 400,
+              headers: getResponseHeaders(corsHeaders),
+            }
+          );
+        }
+
+        // Verify workout has at least 1 set
+        const { count: setCount, error: setCountError } = await supabaseAdmin
+          .from("workout_sets")
+          .select("*", { count: "exact", head: true })
+          .eq("workout_id", workoutId)
+          .is("deleted_at", null);
+
+        if (setCountError || (setCount ?? 0) === 0) {
+          return new Response(
+            JSON.stringify({
+              error: "Workout must have at least 1 set",
+              code: "INVALID_INPUT",
+            }),
+            {
+              status: 400,
+              headers: getResponseHeaders(corsHeaders),
+            }
+          );
+        }
+
+        progressUpdate.workout_completed_at = now;
+        progressUpdate.workout_id = workoutId;
       }
     }
 

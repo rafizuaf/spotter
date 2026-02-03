@@ -130,7 +130,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // FIX: Pre-aggregate all user stats in single queries instead of N+1 pattern
     // This eliminates 30+ individual queries and replaces with 3-4 batch queries
-    const [workoutCountResult, prCountResult, userLevelResult, muscleGroupStatsResult] = await Promise.all([
+    const [workoutCountResult, prCountResult, userLevelResult, muscleGroupStatsResult, challengeWinCountResult, challengeParticipationCountResult, challengeCreatorResult] = await Promise.all([
       // Total workout count
       supabaseAdmin
         .from("workouts")
@@ -156,11 +156,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .select("exercise_id, exercises!inner(muscle_group)")
         .eq("user_id", userId)
         .eq("deleted_at", null),
+      // Challenge win count (CHALLENGE_WIN source type)
+      supabaseAdmin
+        .from("user_xp_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("source_type", "CHALLENGE_WIN"),
+      // Challenge participation count (any CHALLENGE_* source type)
+      supabaseAdmin
+        .from("user_xp_logs")
+        .select("source_type")
+        .eq("user_id", userId)
+        .like("source_type", "CHALLENGE_%"),
+      // Challenges created by user with 10+ finished participants
+      supabaseAdmin
+        .from("challenges")
+        .select("id, challenge_participants!inner(id, status)")
+        .eq("created_by_id", userId)
+        .eq("status", "COMPLETED")
+        .is("deleted_at", null),
     ]);
 
     const workoutCount = workoutCountResult.count ?? 0;
     const prCount = prCountResult.count ?? 0;
     const userLevel = (userLevelResult.data as { level: number } | null)?.level ?? 0;
+    const challengeWinCount = challengeWinCountResult.count ?? 0;
+    const challengeParticipationCount = challengeParticipationCountResult.data?.length ?? 0;
     
     // Group muscle group sets by muscle_group
     const muscleGroupCounts = new Map<string, number>();
@@ -169,6 +190,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const muscleGroup = set.exercises.muscle_group;
         muscleGroupCounts.set(muscleGroup, (muscleGroupCounts.get(muscleGroup) ?? 0) + 1);
       });
+    }
+
+    // Count challenges created with 10+ finished participants
+    let challengeCreatorCount = 0;
+    if (challengeCreatorResult.data) {
+      const challenges = challengeCreatorResult.data as Array<{
+        id: string;
+        challenge_participants: Array<{ id: string; status: string }>;
+      }>;
+      for (const challenge of challenges) {
+        const finishedCount = challenge.challenge_participants.filter(
+          (p) => p.status === "COMPLETED" || p.status === "ACTIVE"
+        ).length;
+        if (finishedCount >= 10) {
+          challengeCreatorCount++;
+        }
+      }
     }
 
     const newlyUnlocked: UnlockedBadge[] = [];
@@ -216,6 +254,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const threshold = achievement.threshold_value ?? 10;
         const muscleGroupCount = muscleGroupCounts.get(achievement.relevant_muscle_group) ?? 0;
         conditionMet = muscleGroupCount >= threshold;
+      }
+
+      // Challenge badges
+      else if (achievement.code === "CHALLENGE_FIRST_WIN") {
+        conditionMet = challengeWinCount >= 1;
+      }
+      else if (achievement.code === "CHALLENGE_5_WINS") {
+        conditionMet = challengeWinCount >= 5;
+      }
+      else if (achievement.code === "CHALLENGE_10_PARTICIPATIONS") {
+        conditionMet = challengeParticipationCount >= 10;
+      }
+      else if (achievement.code === "CHALLENGE_CREATOR") {
+        conditionMet = challengeCreatorCount >= 1;
       }
 
       // If condition met, create badge

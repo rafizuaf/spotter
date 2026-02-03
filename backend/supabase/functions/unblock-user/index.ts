@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -43,6 +44,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // SECURITY: Rate limiting to prevent spam
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
+    );
+
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'unblock-user',
+      RATE_LIMITS['unblock-user'].maxRequests,
+      RATE_LIMITS['unblock-user'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['unblock-user'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
+
     // 2. Parse request
     const { blockedId }: UnblockUserRequest = await req.json();
 
@@ -56,11 +91,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // 3. Use admin client for business logic
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
-    );
+    // 3. Use admin client for business logic (already created above for rate limiting)
 
     // 4. Find the block record
     const { data: existingBlock } = await supabaseAdmin

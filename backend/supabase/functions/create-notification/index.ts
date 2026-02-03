@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -24,7 +25,10 @@ type NotificationType =
   | "PR"
   | "STREAK"
   | "SYSTEM"
-  | "LEVEL_UP";
+  | "LEVEL_UP"
+  | "CHALLENGE_WIN"
+  | "CHALLENGE_PODIUM"
+  | "CHALLENGE_COMPLETE";
 
 interface CreateNotificationRequest {
   recipientId: string;
@@ -86,6 +90,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // SECURITY: Rate limiting to prevent notification spam
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
+    );
+
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'create-notification',
+      RATE_LIMITS['create-notification'].maxRequests,
+      RATE_LIMITS['create-notification'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['create-notification'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
+
     // 2. Parse request
     const {
       recipientId,
@@ -96,6 +134,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
       body,
       sendPush = true,
     }: CreateNotificationRequest = await req.json();
+
+    // SECURITY: Validate actorId matches authenticated user (prevents impersonation)
+    if (actorId && actorId !== user.id) {
+      return new Response(
+        JSON.stringify({
+          error: "actorId must match authenticated user",
+          code: "FORBIDDEN",
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // SECURITY: Validate metadata size (prevent abuse)
+    if (metadata) {
+      const metadataStr = JSON.stringify(metadata);
+      if (metadataStr.length > 1000) {
+        return new Response(
+          JSON.stringify({
+            error: "Metadata too large (max 1000 characters)",
+            code: "INVALID_INPUT",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
 
     if (!recipientId || !type || !title) {
       return new Response(
@@ -166,6 +235,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       LEVEL_UP: "BADGES_LEVELS",
       STREAK: "BADGES_LEVELS",
       SYSTEM: "REMINDERS", // System notifications treated as reminders
+      CHALLENGE_WIN: "CHALLENGES",
+      CHALLENGE_PODIUM: "CHALLENGES",
+      CHALLENGE_COMPLETE: "CHALLENGES",
       // Legacy mapping (for backward compatibility)
       follow: "SOCIAL",
       achievement: "BADGES_LEVELS",
@@ -197,10 +269,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // 7. Check for duplicate notification in last 5 minutes (idempotency)
+    // 7. Check for duplicate notification in last 15 minutes (idempotency)
+    // SECURITY: Extended window to prevent spam
     const now = new Date().toISOString();
     const metadataStr = metadata ? JSON.stringify(metadata) : "{}";
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
     const { data: existingNotification } = await supabaseAdmin
       .from("notifications")
@@ -208,7 +281,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .eq("recipient_id", recipientId)
       .eq("type", type)
       .eq("metadata", metadataStr)
-      .gte("created_at", fiveMinutesAgo)
+      .gte("created_at", fifteenMinutesAgo)
       .is("deleted_at", null)
       .maybeSingle();
 

@@ -54,4 +54,68 @@ export const RATE_LIMITS = {
     maxRequests: 10, // 10 stats generations per minute
     windowMs: 60 * 1000,
   },
+  'follow-user': {
+    maxRequests: 20, // 20 follows per minute
+    windowMs: 60 * 1000,
+  },
+  'unfollow-user': {
+    maxRequests: 20, // 20 unfollows per minute
+    windowMs: 60 * 1000,
+  },
+  'react-to-post': {
+    maxRequests: 30, // 30 reactions per minute
+    windowMs: 60 * 1000,
+  },
+  'block-user': {
+    maxRequests: 10, // 10 blocks per hour
+    windowMs: 60 * 60 * 1000,
+  },
+  'unblock-user': {
+    maxRequests: 10, // 10 unblocks per hour
+    windowMs: 60 * 60 * 1000,
+  },
+  'create-notification': {
+    maxRequests: 50, // 50 notifications per minute
+    windowMs: 60 * 1000,
+  },
+  'search-users': {
+    maxRequests: 30, // 30 searches per minute
+    windowMs: 60 * 1000,
+  },
+  'invite-workout-partner': {
+    maxRequests: 10, // 10 invitations per minute
+    windowMs: 60 * 1000,
+  },
+  'create-challenge': {
+    maxRequests: 5, // 5 challenges per minute
+    windowMs: 60 * 1000,
+  },
+  'join-challenge': {
+    maxRequests: 20, // 20 joins per minute
+    windowMs: 60 * 1000,
+  },
+  'leave-challenge': {
+    maxRequests: 20, // 20 leaves per minute
+    windowMs: 60 * 1000,
+  },
+  'submit-feedback': {
+    maxRequests: 10, // 10 feedback submissions per hour
+    windowMs: 60 * 60 * 1000,
+  },
+  'increment-routine-usage': {
+    maxRequests: 10, // 10 increments per minute per routine
+    windowMs: 60 * 1000,
+  },
+  'get-leaderboard': {
+    maxRequests: 30, // 30 leaderboard fetches per minute
+    windowMs: 60 * 1000,
+  },
+  'enroll-program': {
+    maxRequests: 5, // 5 enrollments per hour
+    windowMs: 60 * 60 * 1000,
+  },
+  'complete-program-day': {
+    maxRequests: 20, // 20 day completions per minute
+    windowMs: 60 * 1000,
+  },
 } as const;

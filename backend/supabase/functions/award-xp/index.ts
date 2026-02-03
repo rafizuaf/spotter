@@ -201,56 +201,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const typedSets = sets as WorkoutSet[];
     const workoutId = typedSets[0].workout_id;
 
-    // FIX: Get user's timezone from workout or user_settings for accurate daily cap calculation
-    // This ensures daily cap resets at midnight in user's local timezone, not server timezone
-    let userTimezone: string | null = null;
-    
-    // Try to get timezone from the workout first (most accurate, reflects when workout happened)
-    if (workoutId) {
-      const { data: workout } = await supabaseAdmin
-        .from("workouts")
-        .select("local_timezone")
-        .eq("id", workoutId)
-        .single();
-      
-      if (workout && (workout as { local_timezone?: string | null }).local_timezone) {
-        userTimezone = (workout as { local_timezone: string }).local_timezone;
-      }
-    }
-    
-    // Fall back to user_settings if workout doesn't have timezone
-    if (!userTimezone) {
-      const { data: userSettings } = await supabaseAdmin
-        .from("user_settings")
-        .select("timezone_preference")
-        .eq("user_id", userId)
-        .single();
-      
-      if (userSettings && (userSettings as { timezone_preference?: string | null }).timezone_preference) {
-        userTimezone = (userSettings as { timezone_preference: string }).timezone_preference;
-      }
-    }
-
-    // Calculate today's start in user's timezone, then convert to UTC for database query
+    // SECURITY: Use UTC for daily cap calculation to prevent timezone manipulation abuse
+    // Users cannot bypass daily cap by changing timezone_preference
     const now = new Date();
-    let todayStartUTC: Date;
-    
-    if (userTimezone) {
-      // Get current date/time string in user's timezone
-      const nowInUserTz = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
-      const todayInUserTz = new Date(nowInUserTz);
-      todayInUserTz.setHours(0, 0, 0, 0);
-      
-      // Calculate UTC offset and adjust
-      const offsetMs = now.getTime() - nowInUserTz.getTime();
-      todayStartUTC = new Date(todayInUserTz.getTime() + offsetMs);
-    } else {
-      // Default to UTC if no timezone available
-      todayStartUTC = new Date(now);
-      todayStartUTC.setUTCHours(0, 0, 0, 0);
-    }
+    const todayStartUTC = new Date(now);
+    todayStartUTC.setUTCHours(0, 0, 0, 0);
 
-    // Get today's XP total (using user's timezone-adjusted start time)
+    // Get today's XP total (using UTC calendar day)
     const { data: todayXpData } = await supabaseAdmin
       .from("user_xp_logs")
       .select("xp_amount")
@@ -318,6 +275,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       // Award XP for this set
+      // SECURITY: Use ON CONFLICT DO NOTHING to handle race conditions gracefully
       const { error: insertError } = await supabaseAdmin
         .from("user_xp_logs")
         .insert({
@@ -325,7 +283,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           source_type: "SET",
           source_id: set.id,
           xp_amount: XP_PER_SET,
-        });
+        })
+        .onConflict('user_id, source_type, source_id')
+        .ignoreDuplicates(); // Prevents duplicate XP on concurrent requests
 
       if (!insertError) {
         xpAwarded += XP_PER_SET;
@@ -351,20 +311,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .eq("source_id", workoutId)
         .single();
 
-      if (!existingBonus && todayXpTotal + xpAwarded < DAILY_XP_CAP) {
-        const { error: bonusError } = await supabaseAdmin
-          .from("user_xp_logs")
-          .insert({
-            user_id: userId,
-            source_type: "WORKOUT",
-            source_id: workoutId,
-            xp_amount: XP_WORKOUT_BONUS,
-          });
+    if (!existingBonus && todayXpTotal + xpAwarded < DAILY_XP_CAP) {
+      // SECURITY: Use ON CONFLICT DO NOTHING to handle race conditions gracefully
+      const { error: bonusError } = await supabaseAdmin
+        .from("user_xp_logs")
+        .insert({
+          user_id: userId,
+          source_type: "WORKOUT",
+          source_id: workoutId,
+          xp_amount: XP_WORKOUT_BONUS,
+        })
+        .onConflict('user_id, source_type, source_id')
+        .ignoreDuplicates(); // Prevents duplicate workout bonus on concurrent requests
 
-        if (!bonusError) {
-          xpAwarded += XP_WORKOUT_BONUS;
-        }
+      if (!bonusError) {
+        xpAwarded += XP_WORKOUT_BONUS;
       }
+    }
     }
 
     // Update user level cache

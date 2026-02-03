@@ -2,6 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { createClient } from "jsr:@supabase/supabase-js";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
@@ -87,6 +88,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
     );
 
+    // SECURITY: Rate limiting to prevent enrollment spam
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'enroll-program',
+      RATE_LIMITS['enroll-program'].maxRequests,
+      RATE_LIMITS['enroll-program'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['enroll-program'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
+
     const { programCode }: EnrollProgramRequest = await req.json();
 
     if (!programCode) {
@@ -119,6 +149,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const typedProgram = program as BeginnerProgram;
+
+    // SECURITY: Check subscription tier for program access
+    // Beginner programs are FREE, but we validate tier anyway for future-proofing
+    const { data: entitlement } = await supabaseAdmin
+      .from("user_entitlements")
+      .select("tier, valid_until")
+      .eq("user_id", user.id)
+      .single();
+
+    const tier = entitlement?.tier ?? "FREE";
+    const isExpired = entitlement?.valid_until && new Date(entitlement.valid_until) < new Date();
+    const effectiveTier = isExpired ? "FREE" : tier;
+
+    // Note: Beginner programs are FREE, but if we add required_tier column in future,
+    // we would check it here. For now, all beginner programs are accessible to all tiers.
 
     // Check if user is already enrolled in this program
     const { data: existingEnrollment } = await supabaseAdmin

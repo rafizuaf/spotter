@@ -5,6 +5,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js";
 import { getResponseHeaders } from "../_shared/security.ts";
+import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 const getAllowedOrigin = (): string => {
   return Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -103,6 +104,57 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Create admin client for rate limiting and block checks
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SECRET_KEY") ?? ""
+    );
+
+    // SECURITY: Rate limiting to prevent invitation spam
+    const rateLimit = await checkRateLimit(
+      user.id,
+      'invite-workout-partner',
+      RATE_LIMITS['invite-workout-partner'].maxRequests,
+      RATE_LIMITS['invite-workout-partner'].windowMs,
+      supabaseAdmin
+    );
+    if (rateLimit.rateLimited) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMITED",
+          retry_after: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+            "X-RateLimit-Limit": RATE_LIMITS['invite-workout-partner'].maxRequests.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+          },
+        }
+      );
+    }
+
+    // SECURITY: Check if users are blocked (either direction) before sending invitation
+    const { data: blockCheck } = await supabaseAdmin
+      .from("user_blocks")
+      .select("id")
+      .or(
+        `and(blocker_id.eq.${user.id},blocked_id.eq.${partner_user_id}),and(blocker_id.eq.${partner_user_id},blocked_id.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    if (blockCheck) {
+      return new Response(
+        JSON.stringify({ error: "Cannot invite blocked user", code: "FORBIDDEN" }),
+        { status: 403, headers: getResponseHeaders(corsHeaders) }
+      );
+    }
+
     // Check if already partners
     const { data: existingPartner } = await supabaseClient
       .from("workout_partners")
@@ -158,11 +210,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // Create notification for invitee
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
     const { data: inviter } = await supabaseClient
       .from("users")
       .select("username")
