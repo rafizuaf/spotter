@@ -115,10 +115,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // SECURITY: Rate limiting - prevent abuse
-    const rateLimit = checkRateLimit(
+    const rateLimit = await checkRateLimit(
       user.id,
+      'award-xp',
       RATE_LIMITS['award-xp'].maxRequests,
-      RATE_LIMITS['award-xp'].windowMs
+      RATE_LIMITS['award-xp'].windowMs,
+      supabaseAdmin
     );
     if (rateLimit.rateLimited) {
       return new Response(

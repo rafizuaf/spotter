@@ -31,16 +31,47 @@ export interface ExerciseEntry {
   sets: WorkoutSet[];
 }
 
-interface GamificationResult {
-  xpAwarded: number;
-  levelUp: boolean;
-  newLevel: number;
-  prCount: number;
-  badgesUnlocked: number;
-}
+// A2: Gamification results are now pulled from server via sync-pull
+// No longer returned from finishWorkout - UI queries WatermelonDB reactively
+
+// B1: Workout lifecycle state machine
+type WorkoutStateStatus =
+  | { status: 'idle' }
+  | {
+      status: 'active';
+      workoutId: string;
+      workoutName: string;
+      workoutNote: string;
+      visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
+      startTime: Date;
+      exercises: ExerciseEntry[];
+      routineOriginId: string | null;
+    }
+  | {
+      status: 'completing';
+      workoutId: string;
+      workoutName: string;
+      workoutNote: string;
+      visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
+      startTime: Date;
+      exercises: ExerciseEntry[];
+      routineOriginId: string | null;
+    }
+  | {
+      status: 'completed';
+      workoutId: string;
+    }
+  | {
+      status: 'failed';
+      error: string;
+      workoutId?: string;
+    };
 
 interface WorkoutState {
-  // State
+  // B1: Explicit state machine
+  workoutState: WorkoutStateStatus;
+  
+  // Backward-compatible getters (derived from workoutState)
   isActive: boolean;
   workoutId: string | null;
   workoutName: string;
@@ -66,68 +97,233 @@ interface WorkoutState {
     success: boolean;
     workoutId?: string;
     error?: string;
-    gamification?: GamificationResult;
   }>;
   cancelWorkout: () => void;
 }
 
-export const useWorkoutStore = create<WorkoutState>((set, get) => ({
-  // Initial state
-  isActive: false,
-  workoutId: null,
-  workoutName: '',
-  workoutNote: '',
-  visibility: 'PUBLIC',
-  startTime: null,
-  exercises: [],
-  routineOriginId: null,
+// A1: Extracted helper functions for workout completion
+async function saveWorkoutToLocal(
+  activeState: Extract<WorkoutStateStatus, { status: 'active' }>,
+  userId: string
+): Promise<{ success: boolean; workoutId: string; error?: string }> {
+  const workoutServerId = activeState.workoutId;
+  const endTime = new Date();
 
-  startWorkout: (routineId?: string) => {
-    const now = new Date();
-    set({
-      isActive: true,
-      workoutId: uuid(),
-      workoutName: `Workout ${now.toLocaleDateString()}`,
+  // Get completed sets only (weight and reps are optional for Quick Log)
+  const completedSets: WorkoutSet[] = [];
+  activeState.exercises.forEach((exercise) => {
+    exercise.sets.forEach((set) => {
+      if (set.completed) {
+        completedSets.push(set);
+      }
+    });
+  });
+
+  if (completedSets.length === 0) {
+    return { success: false, workoutId: workoutServerId, error: 'No completed sets to save' };
+  }
+
+  try {
+    // Save to WatermelonDB
+    await database.write(async () => {
+      // Create workout
+      const workout = await workoutsCollection.create((w: Workout) => {
+        w.serverId = workoutServerId;
+        w.userId = userId;
+        w.routineOriginId = activeState.routineOriginId || undefined;
+        w.name = activeState.workoutName || undefined;
+        w.note = activeState.workoutNote || undefined;
+        w.startedAt = activeState.startTime;
+        w.endedAt = endTime;
+        w.localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        w.visibility = activeState.visibility;
+      });
+
+      // Create workout sets (weight and reps default to 0 if not provided)
+      for (const set of completedSets) {
+        await workoutSetsCollection.create((s: WorkoutSetModel) => {
+          s.serverId = uuid();
+          s.workoutId = workout.id;
+          s.exerciseId = set.exerciseId;
+          s.weightKg = parseFloat(set.weightKg) || 0;
+          s.reps = parseInt(set.reps, 10) || 0;
+          s.rpe = set.rpe ? parseFloat(set.rpe) : undefined;
+          s.rir = set.rir ? parseInt(set.rir, 10) : undefined;
+          s.isFailure = set.isFailure;
+          s.note = set.note || undefined;
+          s.isPr = false;
+          s.setOrderIndex = set.setOrderIndex;
+        });
+      }
+    });
+
+    return { success: true, workoutId: workoutServerId };
+  } catch (error) {
+    logError(error, 'workoutStore_saveWorkoutToLocal');
+    return {
+      success: false,
+      workoutId: workoutServerId,
+      error: error instanceof Error ? error.message : 'Failed to save workout locally',
+    };
+  }
+}
+
+async function syncWorkout(): Promise<void> {
+  // A2: Single XP path - gamification (XP, level, PRs, badges, social post) runs server-side in sync-push
+  try {
+    await syncDatabase();
+    
+    // Phase 2G: Update challenge scores after workout sync completes
+    const state = useWorkoutStore.getState();
+    const workoutId = state.workoutId;
+    if (workoutId) {
+      try {
+        await supabase.functions.invoke('update-challenge-scores', {
+          body: { workout_id: workoutId },
+        });
+      } catch (challengeError) {
+        logError(challengeError, 'workoutStore_challengeScoreUpdate');
+        // Don't fail workout completion if challenge update fails
+      }
+    }
+
+    // Pull updated gamification data (XP, levels, badges, PRs) from server
+    // This provides immediate feedback without blocking workout completion
+    try {
+      await syncDatabase();
+    } catch (pullError) {
+      logError(pullError, 'workoutStore_postSyncPull');
+      // Don't fail if pull fails - data will sync on next sync cycle
+    }
+  } catch (syncError) {
+    logError(syncError, 'workoutStore_postWorkoutSync');
+    // Don't fail the workout save if sync fails - it will sync later
+    throw syncError; // Re-throw so finishWorkout can handle it
+  }
+}
+
+export const useWorkoutStore = create<WorkoutState>((set, get) => {
+  // Helper to derive backward-compatible fields from state
+  const deriveFields = (state: WorkoutStateStatus) => {
+    if (state.status === 'idle') {
+      return {
+        isActive: false,
+        workoutId: null,
+        workoutName: '',
+        workoutNote: '',
+        visibility: 'PUBLIC' as const,
+        startTime: null,
+        exercises: [],
+        routineOriginId: null,
+      };
+    }
+    if (state.status === 'active' || state.status === 'completing') {
+      return {
+        isActive: state.status === 'active',
+        workoutId: state.workoutId,
+        workoutName: state.workoutName,
+        workoutNote: state.workoutNote,
+        visibility: state.visibility,
+        startTime: state.startTime,
+        exercises: state.exercises,
+        routineOriginId: state.routineOriginId,
+      };
+    }
+    // completed or failed
+    return {
+      isActive: false,
+      workoutId: state.workoutId || null,
+      workoutName: '',
       workoutNote: '',
-      visibility: 'PUBLIC',
-      startTime: now,
+      visibility: 'PUBLIC' as const,
+      startTime: null,
       exercises: [],
-      routineOriginId: routineId || null,
+      routineOriginId: null,
+    };
+  };
+
+  return {
+    // B1: Initial state machine state
+    workoutState: { status: 'idle' } as WorkoutStateStatus,
+    
+    // Backward-compatible fields (derived)
+    ...deriveFields({ status: 'idle' }),
+
+    startWorkout: (routineId?: string) => {
+      const now = new Date();
+      const newState: WorkoutStateStatus = {
+        status: 'active',
+        workoutId: uuid(),
+        workoutName: `Workout ${now.toLocaleDateString()}`,
+        workoutNote: '',
+        visibility: 'PUBLIC',
+        startTime: now,
+        exercises: [],
+        routineOriginId: routineId || null,
+      };
+      set({
+        workoutState: newState,
+        ...deriveFields(newState),
+      });
+    },
+
+    addExercise: (exerciseId: string, exerciseName: string) => {
+      const newExercise: ExerciseEntry = {
+        id: uuid(),
+        exerciseId,
+        name: exerciseName,
+        sets: [
+          {
+            id: uuid(),
+            exerciseId,
+            exerciseName,
+            weightKg: '',
+            reps: '',
+            isFailure: false,
+            completed: false,
+            setOrderIndex: 0,
+          },
+        ],
+      };
+      set((state) => {
+        // B1: Only allow adding exercises when active
+        if (state.workoutState.status !== 'active') return state;
+        
+        const updatedExercises = [...state.exercises, newExercise];
+        const newState: WorkoutStateStatus = {
+          ...state.workoutState,
+          exercises: updatedExercises,
+        };
+        return {
+          workoutState: newState,
+          ...deriveFields(newState),
+        };
+      });
+    },
+
+  removeExercise: (exerciseEntryId: string) => {
+    set((state) => {
+      // B1: Only allow removing exercises when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const updatedExercises = state.exercises.filter((ex) => ex.id !== exerciseEntryId);
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
     });
   },
 
-  addExercise: (exerciseId: string, exerciseName: string) => {
-    const newExercise: ExerciseEntry = {
-      id: uuid(),
-      exerciseId,
-      name: exerciseName,
-      sets: [
-        {
-          id: uuid(),
-          exerciseId,
-          exerciseName,
-          weightKg: '',
-          reps: '',
-          isFailure: false,
-          completed: false,
-          setOrderIndex: 0,
-        },
-      ],
-    };
-    set((state) => ({
-      exercises: [...state.exercises, newExercise],
-    }));
-  },
-
-  removeExercise: (exerciseEntryId: string) => {
-    set((state) => ({
-      exercises: state.exercises.filter((ex) => ex.id !== exerciseEntryId),
-    }));
-  },
-
   addSet: (exerciseEntryId: string) => {
-    set((state) => ({
-      exercises: state.exercises.map((ex) => {
+    set((state) => {
+      // B1: Only allow adding sets when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const updatedExercises = state.exercises.map((ex) => {
         if (ex.id === exerciseEntryId) {
           const newSetIndex = ex.sets.length;
           return {
@@ -148,13 +344,24 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           };
         }
         return ex;
-      }),
-    }));
+      });
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   removeSet: (exerciseEntryId: string, setId: string) => {
-    set((state) => ({
-      exercises: state.exercises.map((ex) => {
+    set((state) => {
+      // B1: Only allow removing sets when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const updatedExercises = state.exercises.map((ex) => {
         if (ex.id === exerciseEntryId) {
           return {
             ...ex,
@@ -162,13 +369,24 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           };
         }
         return ex;
-      }),
-    }));
+      });
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   updateSet: (exerciseEntryId: string, setId: string, updates: Partial<WorkoutSet>) => {
-    set((state) => ({
-      exercises: state.exercises.map((ex) => {
+    set((state) => {
+      // B1: Only allow updating sets when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const updatedExercises = state.exercises.map((ex) => {
         if (ex.id === exerciseEntryId) {
           return {
             ...ex,
@@ -181,12 +399,23 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           };
         }
         return ex;
-      }),
-    }));
+      });
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   toggleSetComplete: (exerciseEntryId: string, setId: string) => {
     set((state) => {
+      // B1: Only allow toggling sets when active
+      if (state.workoutState.status !== 'active') return state;
+      
       let completedSetCount = 0;
       let totalSetCount = 0;
       let exerciseName = '';
@@ -228,13 +457,23 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         announceForAccessibility(`All sets completed for ${exerciseName}.`);
       }
 
-      return { exercises: updatedExercises };
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
     });
   },
 
   quickCompleteSet: (exerciseEntryId: string, setId: string, weight: string, reps: string) => {
-    set((state) => ({
-      exercises: state.exercises.map((ex) => {
+    set((state) => {
+      // B1: Only allow quick completing sets when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const updatedExercises = state.exercises.map((ex) => {
         if (ex.id === exerciseEntryId) {
           return {
             ...ex,
@@ -252,219 +491,118 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           };
         }
         return ex;
-      }),
-    }));
+      });
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   updateWorkoutName: (name: string) => {
-    set({ workoutName: name });
+    set((state) => {
+      // B1: Only allow updating name when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        workoutName: name,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   updateWorkoutNote: (note: string) => {
-    set({ workoutNote: note });
+    set((state) => {
+      // B1: Only allow updating note when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        workoutNote: note,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   updateVisibility: (visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => {
-    set({ visibility });
+    set((state) => {
+      // B1: Only allow updating visibility when active
+      if (state.workoutState.status !== 'active') return state;
+      
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        visibility,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+      };
+    });
   },
 
   finishWorkout: async () => {
+    // A1: Orchestrator - delegates to extracted functions
     try {
       const state = get();
-      const { data: { user } } = await supabase.auth.getUser();
+      
+      // B1: Guard - only allow finishing when active, prevent double-submit
+      if (state.workoutState.status !== 'active') {
+        if (state.workoutState.status === 'completing') {
+          return { success: false, error: 'Workout completion already in progress' };
+        }
+        return { success: false, error: 'No active workout to finish' };
+      }
 
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return { success: false, error: 'User not authenticated' };
       }
 
-      if (!state.startTime) {
-        return { success: false, error: 'No workout start time' };
-      }
-
-      const workoutServerId = state.workoutId || uuid();
-      const endTime = new Date();
-
-      // Get completed sets only (weight and reps are optional for Quick Log)
-      const completedSets: WorkoutSet[] = [];
-      state.exercises.forEach((exercise) => {
-        exercise.sets.forEach((set) => {
-          if (set.completed) {
-            completedSets.push(set);
-          }
-        });
-      });
-
-      if (completedSets.length === 0) {
-        return { success: false, error: 'No completed sets to save' };
-      }
-
-      // Save to WatermelonDB
-      await database.write(async () => {
-        // Create workout
-        const workout = await workoutsCollection.create((w: Workout) => {
-          w.serverId = workoutServerId;
-          w.userId = user.id;
-          w.routineOriginId = state.routineOriginId || undefined;
-          w.name = state.workoutName || undefined;
-          w.note = state.workoutNote || undefined;
-          w.startedAt = state.startTime!;
-          w.endedAt = endTime;
-          w.localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          w.visibility = state.visibility;
-        });
-
-        // Create workout sets (weight and reps default to 0 if not provided)
-        for (const set of completedSets) {
-          await workoutSetsCollection.create((s: WorkoutSetModel) => {
-            s.serverId = uuid();
-            s.workoutId = workout.id;
-            s.exerciseId = set.exerciseId;
-            s.weightKg = parseFloat(set.weightKg) || 0;
-            s.reps = parseInt(set.reps, 10) || 0;
-            s.rpe = set.rpe ? parseFloat(set.rpe) : undefined;
-            s.rir = set.rir ? parseInt(set.rir, 10) : undefined;
-            s.isFailure = set.isFailure;
-            s.note = set.note || undefined;
-            s.isPr = false;
-            s.setOrderIndex = set.setOrderIndex;
-          });
-        }
-      });
-
-      // Sync to server
-      try {
-        await syncDatabase();
-        
-        // Phase 2G: Update challenge scores after workout sync completes
-        if (workoutServerId) {
-          try {
-            await supabase.functions.invoke('update-challenge-scores', {
-              body: { workout_id: workoutServerId },
-            });
-          } catch (challengeError) {
-            logError(challengeError, 'workoutStore_challengeScoreUpdate');
-            // Don't fail workout completion if challenge update fails
-          }
-        }
-      } catch (syncError) {
-        logError(syncError, 'workoutStore_postWorkoutSync');
-        // Don't fail the workout save if sync fails - it will sync later
-      }
-
-      // Gamification results
-      let xpAwarded = 0;
-      let levelUp = false;
-      let newLevel = 0;
-      let prCount = 0;
-      let badgesUnlocked = 0;
-
-      // Call gamification functions
-      // NOTE: award-xp is automatically called by sync-push when sets are synced
-      // This direct call is for immediate feedback, but sync-push handles the actual XP award
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // 1. Award XP - Get set IDs from the completed workout
-          // Wait a moment for sync to complete, then get synced set server IDs
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          
-          // Get the workout record to access its ID
-          const workoutRecords = await workoutsCollection
-            .query(Q.where('server_id', workoutServerId))
-            .fetch();
-          
-          if (workoutRecords.length > 0) {
-            const workoutRecord = workoutRecords[0] as Workout;
-            
-            const workoutSets = await database.collections
-              .get('workout_sets')
-              .query(
-                Q.where('workout_id', workoutRecord.id),
-                Q.where('deleted_at', null)
-              )
-              .fetch();
-
-            const setServerIds = workoutSets
-              .map((set) => (set as WorkoutSetModel).serverId)
-              .filter((id: string | undefined): id is string => !!id);
-
-            if (setServerIds.length > 0) {
-              const { data: xpData } = await supabase.functions.invoke('award-xp', {
-                body: { userId: user.id, setIds: setServerIds },
-              });
-              xpAwarded = xpData?.xpAwarded || 0;
-            }
-          }
-
-          // 2. Calculate level
-          const { data: levelData } = await supabase.functions.invoke('calculate-level', {
-            body: { userId: user.id },
-          });
-          if (levelData?.success) {
-            newLevel = levelData.level;
-            // Check if leveled up (simple check - could be improved)
-            levelUp = xpAwarded > 0 && levelData.level > 1;
-          }
-
-          // 3. Detect PRs
-          const { data: prData } = await supabase.functions.invoke('detect-pr', {
-            body: { workoutId: workoutServerId },
-          });
-          prCount = prData?.prCount || 0;
-          
-          // Announce PR detection
-          if (prCount > 0 && prData?.prs) {
-            const prExercises = prData.prs.map((pr: { exerciseName?: string }) => pr.exerciseName || 'exercise').join(', ');
-            if (prCount === 1) {
-              announceForAccessibility(`Personal record on ${prExercises}!`);
-            } else {
-              announceForAccessibility(`${prCount} personal records detected!`);
-            }
-          }
-
-          // 4. Unlock badges
-          const { data: badgeData } = await supabase.functions.invoke('unlock-badge', {
-            body: { userId: user.id },
-          });
-          badgesUnlocked = badgeData?.badgeCount || 0;
-
-          // 5. Create social post (if visibility allows)
-          if (state.visibility !== 'PRIVATE') {
-            try {
-              await supabase.functions.invoke('create-social-post', {
-                body: {
-                  workoutId: workoutServerId,
-                  visibility: state.visibility,
-                },
-              });
-            } catch (postError) {
-              logError(postError, 'workoutStore_createSocialPost');
-              // Don't fail if social post creation fails
-            }
-          }
-
-          // 6. Sync updated data from server
-          try {
-            await syncDatabase();
-          } catch (finalSyncError) {
-            logError(finalSyncError, 'workoutStore_finalSync');
-          }
-        }
-      } catch (gamificationError) {
-        logError(gamificationError, 'workoutStore_gamification');
-        // Don't fail the workout save if gamification fails
-      }
-
-      // Reset workout state
+      // B1: Transition to completing state (non-reentrant)
+      const activeState = state.workoutState;
+      const completingState: WorkoutStateStatus = {
+        status: 'completing',
+        workoutId: activeState.workoutId,
+        workoutName: activeState.workoutName,
+        workoutNote: activeState.workoutNote,
+        visibility: activeState.visibility,
+        startTime: activeState.startTime,
+        exercises: activeState.exercises,
+        routineOriginId: activeState.routineOriginId,
+      };
       set({
-        isActive: false,
-        workoutId: null,
-        workoutName: '',
-        workoutNote: '',
-        visibility: 'PUBLIC',
-        startTime: null,
-        exercises: [],
-        routineOriginId: null,
+        workoutState: completingState,
+        ...deriveFields(completingState),
+      });
+
+      // A1: Extract function 1 - Save workout to local database
+      const saveResult = await saveWorkoutToLocal(activeState, user.id);
+      if (!saveResult.success) {
+        throw new Error(saveResult.error);
+      }
+
+      // A1: Extract function 2 - Sync workout to server
+      await syncWorkout();
+
+      // B1: Transition to completed state
+      const completedState: WorkoutStateStatus = {
+        status: 'completed',
+        workoutId: saveResult.workoutId,
+      };
+      set({
+        workoutState: completedState,
+        ...deriveFields(completedState),
       });
 
       // Announce workout completion
@@ -472,17 +610,25 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       return {
         success: true,
-        workoutId: workoutServerId,
-        gamification: {
-          xpAwarded,
-          levelUp,
-          newLevel,
-          prCount,
-          badgesUnlocked,
-        },
+        workoutId: saveResult.workoutId,
       };
     } catch (error) {
       logError(error, 'workoutStore_finishWorkout');
+      
+      // B1: Transition to failed state
+      const currentState = get().workoutState;
+      const failedState: WorkoutStateStatus = {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Failed to save workout',
+        workoutId: currentState.status === 'completing' || currentState.status === 'active' 
+          ? currentState.workoutId 
+          : undefined,
+      };
+      set({
+        workoutState: failedState,
+        ...deriveFields(failedState),
+      });
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to save workout',
@@ -490,18 +636,26 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     }
   },
 
-  cancelWorkout: () => {
-    set({
-      isActive: false,
-      workoutId: null,
-      workoutName: '',
-      workoutNote: '',
-      visibility: 'PUBLIC',
-      startTime: null,
-      exercises: [],
-      routineOriginId: null,
-    });
-  },
-}));
+    cancelWorkout: () => {
+      // B1: Transition from active to idle
+      set((state) => {
+        if (state.workoutState.status !== 'active') {
+          // Already idle or in invalid state, reset to idle
+          const idleState: WorkoutStateStatus = { status: 'idle' };
+          return {
+            workoutState: idleState,
+            ...deriveFields(idleState),
+          };
+        }
+        
+        const idleState: WorkoutStateStatus = { status: 'idle' };
+        return {
+          workoutState: idleState,
+          ...deriveFields(idleState),
+        };
+      });
+    },
+  };
+});
 
 export default useWorkoutStore;

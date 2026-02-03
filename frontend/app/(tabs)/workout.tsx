@@ -325,27 +325,10 @@ export default function WorkoutScreen() {
       // Store the completed workout ID for sharing
       setCompletedWorkoutId(result.workoutId);
       
-      // Build success message with gamification results
-      const { gamification } = result;
-      let message = 'Another one in the books.\n\n';
-
-      if (gamification) {
-        if (gamification.xpAwarded > 0) {
-          message += `+${gamification.xpAwarded} XP banked\n`;
-        }
-        if (gamification.levelUp && gamification.newLevel > 0) {
-          message += `Level ${gamification.newLevel} unlocked\n`;
-        }
-        if (gamification.prCount > 0) {
-          message += `${gamification.prCount} PR${gamification.prCount > 1 ? 's' : ''} crushed\n`;
-        }
-        if (gamification.badgesUnlocked > 0) {
-          message += `${gamification.badgesUnlocked} badge${gamification.badgesUnlocked > 1 ? 's' : ''} earned\n`;
-        }
-      }
-
-      // Show alert with share option
-      Alert.alert('Gains Secured', message.trim(), [
+      // A2: Gamification (XP, levels, badges, PRs) runs server-side in sync-push
+      // Data will be available via sync-pull and reactive WatermelonDB queries
+      // Show simple success message - gamification updates will appear in UI reactively
+      Alert.alert('Gains Secured', 'Another one in the books.', [
         {
           text: 'Share Receipt',
           onPress: () => {

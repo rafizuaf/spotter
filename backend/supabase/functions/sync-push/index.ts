@@ -80,10 +80,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // SECURITY: Rate limiting - prevent abuse
-    const rateLimit = checkRateLimit(
+    const rateLimit = await checkRateLimit(
       user.id,
+      'sync-push',
       RATE_LIMITS['sync-push'].maxRequests,
-      RATE_LIMITS['sync-push'].windowMs
+      RATE_LIMITS['sync-push'].windowMs,
+      supabaseAdmin
     );
     if (rateLimit.rateLimited) {
       return new Response(
@@ -306,16 +308,110 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // Trigger XP calculation for new workout sets
+    // Trigger full gamification chain for new workout sets
+    // A2: Single XP path - all gamification runs server-side after sync-push
     if (changes.workout_sets?.created?.length > 0) {
-      await supabaseAdmin.functions.invoke("award-xp", {
-        body: {
-          userId: user.id,
-          setIds: changes.workout_sets.created.map(
-            (s: Record<string, unknown>) => s.id || s.server_id
-          ),
-        },
-      });
+      const setIds = changes.workout_sets.created.map(
+        (s: Record<string, unknown>) => s.id || s.server_id
+      ) as string[];
+
+      // Get workout_id from the first set (all sets in a batch belong to same workout)
+      // Sets have workout_id field that references the workout (may be local ID before sync)
+      const firstSet = changes.workout_sets.created[0] as Record<string, unknown>;
+      let workoutId = (firstSet.workout_id || firstSet.workoutId) as string | undefined;
+
+      // If workout was also created in this sync, use that workout's server ID
+      // Otherwise, query the database to get the server workout_id from the sets
+      if (!workoutId && changes.workouts?.created?.length > 0) {
+        // Workout was created in same sync - use its server ID
+        const createdWorkout = changes.workouts.created[0] as Record<string, unknown>;
+        workoutId = (createdWorkout.id || createdWorkout.server_id) as string | undefined;
+      }
+
+      // If still no workoutId, query database using one of the set IDs to get workout_id
+      if (!workoutId && setIds.length > 0) {
+        const { data: setData } = await supabaseAdmin
+          .from("workout_sets")
+          .select("workout_id")
+          .eq("id", setIds[0])
+          .single();
+        workoutId = setData?.workout_id as string | undefined;
+      }
+
+      if (workoutId) {
+        // Get workout visibility for social post creation
+        const { data: workout } = await supabaseAdmin
+          .from("workouts")
+          .select("visibility, ended_at")
+          .eq("id", workoutId)
+          .single();
+
+        const workoutVisibility = (workout as { visibility?: string } | null)?.visibility || "PRIVATE";
+        const workoutEnded = (workout as { ended_at?: string | null } | null)?.ended_at;
+
+        // 1. Award XP (already idempotent)
+        try {
+          await supabaseAdmin.functions.invoke("award-xp", {
+            body: {
+              userId: user.id,
+              setIds,
+            },
+          });
+        } catch (error) {
+          console.error("Error awarding XP:", error);
+          // Continue with other gamification even if XP fails
+        }
+
+        // 2. Calculate level (idempotent - recalculates from total XP)
+        try {
+          await supabaseAdmin.functions.invoke("calculate-level", {
+            body: {
+              userId: user.id,
+            },
+          });
+        } catch (error) {
+          console.error("Error calculating level:", error);
+        }
+
+        // 3. Detect PRs (only if workout is completed)
+        if (workoutEnded) {
+          try {
+            await supabaseAdmin.functions.invoke("detect-pr", {
+              body: {
+                workoutId,
+              },
+            });
+          } catch (error) {
+            console.error("Error detecting PRs:", error);
+          }
+        }
+
+        // 4. Unlock badges (idempotent - checks conditions, only unlocks new ones)
+        try {
+          await supabaseAdmin.functions.invoke("unlock-badge", {
+            body: {
+              userId: user.id,
+            },
+          });
+        } catch (error) {
+          console.error("Error unlocking badges:", error);
+        }
+
+        // 5. Create social post (only if workout is completed and not PRIVATE)
+        if (workoutEnded && workoutVisibility !== "PRIVATE") {
+          try {
+            await supabaseAdmin.functions.invoke("create-social-post", {
+              body: {
+                workoutId,
+                visibility: workoutVisibility,
+              },
+            });
+          } catch (error) {
+            console.error("Error creating social post:", error);
+            // Don't fail sync if social post fails
+          }
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), {

@@ -139,25 +139,9 @@ export default function QuickLogScreen() {
 
     const result = await finishWorkout();
     if (result.success) {
-      const { gamification } = result;
-      let message = 'Quick workout saved!\n\n';
-
-      if (gamification) {
-        if (gamification.xpAwarded > 0) {
-          message += `+${gamification.xpAwarded} XP earned\n`;
-        }
-        if (gamification.levelUp && gamification.newLevel > 0) {
-          message += `Level Up! You're now level ${gamification.newLevel}\n`;
-        }
-        if (gamification.prCount > 0) {
-          message += `${gamification.prCount} new PR${gamification.prCount > 1 ? 's' : ''}!\n`;
-        }
-        if (gamification.badgesUnlocked > 0) {
-          message += `${gamification.badgesUnlocked} badge${gamification.badgesUnlocked > 1 ? 's' : ''} unlocked!\n`;
-        }
-      }
-
-      Alert.alert('Workout Complete!', message.trim(), [
+      // A2: Gamification (XP, levels, badges, PRs) runs server-side in sync-push
+      // Data will be available via sync-pull and reactive WatermelonDB queries
+      Alert.alert('Workout Complete!', 'Quick workout saved!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } else {
