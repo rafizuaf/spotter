@@ -11,8 +11,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { Link, router } from 'expo-router';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/hooks/useTheme';
+import SocialLoginButton from '../../src/components/SocialLoginButton';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -20,8 +22,17 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState('');
-  const { register, isLoading, error, clearError } = useAuthStore();
+  const { register, loginWithOAuth, isLoading, error, clearError } = useAuthStore();
   const colors = useTheme();
+
+  const handleSocialLogin = async (provider: 'google' | 'facebook' | 'apple') => {
+    try {
+      await loginWithOAuth(provider);
+      router.replace('/(tabs)');
+    } catch {
+      // Error is handled by the store
+    }
+  };
 
   const handleRegister = async () => {
     setLocalError('');
@@ -140,6 +151,32 @@ export default function RegisterScreen() {
               )}
             </TouchableOpacity>
 
+            <View style={styles.dividerContainer}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or continue with</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            </View>
+
+            <View style={styles.socialButtons}>
+              <SocialLoginButton
+                provider="google"
+                onPress={() => handleSocialLogin('google')}
+                isLoading={isLoading}
+              />
+              <SocialLoginButton
+                provider="facebook"
+                onPress={() => handleSocialLogin('facebook')}
+                isLoading={isLoading}
+              />
+              {Platform.OS === 'ios' && (
+                <SocialLoginButton
+                  provider="apple"
+                  onPress={() => handleSocialLogin('apple')}
+                  isLoading={isLoading}
+                />
+              )}
+            </View>
+
             <View style={styles.footer}>
               <Text style={[styles.footerText, { color: colors.textSecondary }]}>Already have an account? </Text>
               <Link href="/(auth)/login" asChild>
@@ -227,5 +264,21 @@ const styles = StyleSheet.create({
   errorDismiss: {
     fontWeight: '600',
     marginLeft: 8,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 14,
+  },
+  socialButtons: {
+    gap: 12,
   },
 });

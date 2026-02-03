@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "scheme": "spotter",
+    "scheme": "com.spotter.app",
     "owner": "rafizuaf",
     "extra": {
       "eas": {
@@ -24,7 +24,8 @@
       "bundleIdentifier": "com.spotter.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": []
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +33,17 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.spotter.app"
+      "package": "com.spotter.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["DEFAULT", "BROWSABLE"],
+          "data": {
+            "scheme": "com.spotter.app",
+            "host": "auth-callback"
+          }
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

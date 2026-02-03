@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase, signIn, signUp, signOut, getSession } from '../services/supabase';
+import { supabase, signIn, signUp, signOut, getSession, signInWithOAuth } from '../services/supabase';
 import { initializePurchases, resetPurchases } from '../services/purchases';
 import { logError } from '../utils/errorHandler';
 import type { User, Session } from '@supabase/supabase-js';
@@ -14,6 +14,7 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithOAuth: (provider: 'google' | 'facebook' | 'apple') => Promise<void>;
   register: (email: string, password: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -87,6 +88,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Login failed';
+      set({
+        isLoading: false,
+        error: message,
+      });
+      throw error;
+    }
+  },
+
+  loginWithOAuth: async (provider: 'google' | 'facebook' | 'apple') => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const { data } = await signInWithOAuth(provider);
+      
+      if (data.session?.user?.id) {
+        // Initialize RevenueCat after successful OAuth login
+        initializePurchases(data.session.user.id).catch((error) => {
+          logError(error, 'authStore_initPurchasesAfterOAuth');
+          // Don't block login if RevenueCat fails
+        });
+      }
+
+      set({
+        user: data.session?.user ?? null,
+        session: data.session,
+        isLoading: false,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'OAuth login failed';
       set({
         isLoading: false,
         error: message,

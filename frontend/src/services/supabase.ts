@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 // Supabase configuration
 // Replace these with your actual Supabase project URL and publishable key
@@ -87,6 +89,61 @@ export const getSession = async () => {
 // Subscribe to auth state changes
 export const onAuthStateChange = (callback: (event: string, session: unknown) => void) => {
   return supabase.auth.onAuthStateChange(callback);
+};
+
+// Social login (OAuth) helper function
+type OAuthProvider = 'google' | 'facebook' | 'apple';
+
+export const signInWithOAuth = async (provider: OAuthProvider) => {
+  const redirectUrl = Linking.createURL('auth-callback');
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: redirectUrl,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) throw error;
+  if (!data.url) throw new Error('No OAuth URL returned');
+
+  const result = await WebBrowser.openAuthSessionAsync(
+    data.url,
+    redirectUrl
+  );
+
+  if (result.type === 'success') {
+    // Parse tokens from redirect URL
+    // Supabase redirects with tokens in hash fragment: #access_token=...&refresh_token=...
+    const url = result.url;
+    const hashIndex = url.indexOf('#');
+    const queryIndex = url.indexOf('?');
+
+    // Extract hash fragment or query string
+    const fragment = hashIndex !== -1 ? url.substring(hashIndex + 1) :
+      queryIndex !== -1 ? url.substring(queryIndex + 1) : '';
+
+    const params = new URLSearchParams(fragment);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) throw sessionError;
+    } else {
+      throw new Error('No tokens found in OAuth redirect');
+    }
+  } else if (result.type === 'cancel') {
+    throw new Error('OAuth sign-in was cancelled');
+  } else {
+    throw new Error('OAuth sign-in failed');
+  }
+
+  return supabase.auth.getSession();
 };
 
 export default supabase;
