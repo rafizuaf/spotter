@@ -24,7 +24,7 @@ import { Q } from '@nozbe/watermelondb';
 import { supabase } from '../../src/services/supabase';
 import { getTier } from '../../src/services/exporters/exportLimits';
 import { enrollAdvancedProgram } from '../../src/services/advancedPrograms';
-import { syncDatabase } from '../../src/db/sync';
+import { syncOnDemand, syncDatabase } from '../../src/db/sync'; // A4: Use syncOnDemand for program data
 import ProgramProgressBar from '../../src/components/ProgramProgressBar';
 import ProgramDayCard, { DayStatus } from '../../src/components/ProgramDayCard';
 import type BeginnerProgram from '../../src/db/models/BeginnerProgram';
@@ -59,6 +59,20 @@ export default function ProgramScreen() {
     if (!user) return;
 
     try {
+      // A4: Sync on-demand program tables when screen loads
+      await syncOnDemand([
+        'beginner_programs',
+        'beginner_program_days',
+        'user_program_enrollments',
+        'user_program_day_progress',
+        'advanced_programs',
+        'advanced_program_days',
+        'user_advanced_program_enrollments',
+      ]).catch((error) => {
+        console.error('Error syncing program data:', error);
+        // Continue loading even if sync fails
+      });
+
       // Get the First 30 Days program
       const programs = await beginnerProgramsCollection
         .query(
@@ -233,7 +247,8 @@ export default function ProgramScreen() {
     setEnrolling531(true);
     try {
       await enrollAdvancedProgram(user.id, program531.serverId);
-      await syncDatabase();
+      // A4: After enrollment, sync on-demand tables to get updated enrollment data
+      await syncOnDemand(['user_advanced_program_enrollments', 'advanced_programs', 'advanced_program_days']);
       await loadData();
       router.push('/program/advanced/1' as never);
     } catch (e) {

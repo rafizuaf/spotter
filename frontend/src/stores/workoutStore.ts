@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { database, workoutsCollection, workoutSetsCollection } from '../db';
-import { syncDatabase } from '../db/sync';
+import { syncCritical, syncBackground, syncDatabase } from '../db/sync'; // A4: Use syncCritical for workout sync
 import { supabase } from '../services/supabase';
 import { v4 as uuid } from 'uuid';
 import { Q } from '@nozbe/watermelondb';
@@ -177,8 +177,9 @@ async function saveWorkoutToLocal(
 async function syncWorkoutInBackground(idempotencyKey?: string): Promise<void> {
   // A2: Single XP path - gamification (XP, level, PRs, badges, social post) runs server-side in sync-push
   // A6: Pass idempotency key to prevent duplicate processing on retry
+  // A4: Use syncCritical for workout sync (only syncs critical tables)
   try {
-    await syncDatabase({ idempotencyKey });
+    await syncCritical({ idempotencyKey });
     
     // B2: Clear any previous sync errors on success
     useSyncStatusStore.getState().clearError();
@@ -197,10 +198,10 @@ async function syncWorkoutInBackground(idempotencyKey?: string): Promise<void> {
       }
     }
 
-    // Pull updated gamification data (XP, levels, badges, PRs) from server
+    // A4: Pull updated gamification data (XP, levels, badges, PRs) from background tables
     // This provides immediate feedback without blocking workout completion
     try {
-      await syncDatabase();
+      await syncBackground();
     } catch (pullError) {
       logError(pullError, 'workoutStore_postSyncPull');
       // Don't fail if pull fails - data will sync on next sync cycle

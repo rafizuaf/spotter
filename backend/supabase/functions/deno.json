@@ -12,5 +12,8 @@
   },
   "lint": {
     "rules": {}
+  },
+  "tasks": {
+    "test": "deno test --allow-env --allow-net backend/supabase/functions/__tests__/"
   }
 }

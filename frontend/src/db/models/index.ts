@@ -34,6 +34,8 @@ import Leaderboard from './Leaderboard';
 import LeaderboardEntry from './LeaderboardEntry';
 import WorkoutPartner from './WorkoutPartner';
 import WorkoutPartnerInvitation from './WorkoutPartnerInvitation';
+import PendingOperation from './PendingOperation'; // B7: Persistent offline queue
+import FeatureFlag from './FeatureFlag'; // B10: Feature flags
 
 export {
   User,
@@ -72,6 +74,8 @@ export {
   LeaderboardEntry,
   WorkoutPartner,
   WorkoutPartnerInvitation,
+  PendingOperation, // B7: Persistent offline queue
+  FeatureFlag, // B10: Feature flags
 };
 
 export const modelClasses = [
@@ -111,4 +115,6 @@ export const modelClasses = [
   LeaderboardEntry,
   WorkoutPartner,
   WorkoutPartnerInvitation,
+  PendingOperation, // B7: Persistent offline queue
+  FeatureFlag, // B10: Feature flags
 ];

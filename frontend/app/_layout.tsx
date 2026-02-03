@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AppState, AppStateStatus, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuthStore } from '../src/stores/authStore';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import {
   setupNotificationListeners,
   registerForPushNotifications,
@@ -12,10 +12,13 @@ import { initializeMonitoring, setUserContext, clearUserContext } from '../src/s
 import { setupShortcutListener } from '../src/services/shortcuts';
 import { useTheme } from '../src/hooks/useTheme';
 import { logError } from '../src/utils/errorHandler';
+import { syncBackground } from '../src/db/sync'; // A4: Background sync scheduler
+import { useOfflineQueueStore } from '../src/stores/offlineQueueStore'; // B7: Process offline queue on app start
 
 export default function RootLayout() {
   const { isInitialized, initialize, user } = useAuthStore();
   const colors = useTheme();
+  const { processQueue: processOfflineQueue, getPendingCount } = useOfflineQueueStore(); // B7: Offline queue
 
   useEffect(() => {
     // Initialize monitoring first
@@ -54,6 +57,79 @@ export default function RootLayout() {
     } else {
       clearUserContext();
     }
+  }, [user?.id]);
+
+  // B7: Process offline queue on app start
+  useEffect(() => {
+    if (user?.id) {
+      // Process queue when user is authenticated
+      processOfflineQueue().catch((error) => {
+        logError(error, 'offlineQueue_startup');
+      });
+      // Also update pending count
+      getPendingCount().catch((error) => {
+        logError(error, 'offlineQueue_getPendingCount');
+      });
+    }
+  }, [user?.id, processOfflineQueue, getPendingCount]);
+
+  // A4: Background sync scheduler (every 5 minutes when app is active)
+  useEffect(() => {
+    if (!user?.id) {
+      return; // Don't sync if user not authenticated
+    }
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let appStateSubscription: { remove: () => void } | null = null;
+
+    const scheduleBackgroundSync = () => {
+      // Clear existing interval
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+
+      // Only schedule if app is active
+      if (AppState.currentState === 'active') {
+        // Sync immediately on app become active
+        syncBackground().catch((error) => {
+          logError(error, 'background_sync_initial');
+        });
+
+        // Then sync every 5 minutes
+        intervalId = setInterval(() => {
+          if (AppState.currentState === 'active') {
+            syncBackground().catch((error) => {
+              logError(error, 'background_sync_periodic');
+            });
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+      }
+    };
+
+    // Schedule sync on mount
+    scheduleBackgroundSync();
+
+    // Reschedule when app state changes
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        scheduleBackgroundSync();
+      } else {
+        // Clear interval when app goes to background
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    };
+
+    appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      appStateSubscription?.remove();
+    };
   }, [user?.id]);
 
   if (!isInitialized) {

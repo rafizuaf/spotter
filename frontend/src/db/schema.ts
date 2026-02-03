@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 11, // Ranking badges & profile rankings (show_profile_rankings, prominent_rank, last_total_participants)
+  version: 14, // B10: Feature flags (feature_flags)
   tables: [
     // ============================================
     // Users & Settings
@@ -51,6 +51,7 @@ export const schema = appSchema({
         { name: 'workout_mode', type: 'string' },
         { name: 'show_profile_rankings', type: 'boolean' },
         { name: 'prominent_rank_leaderboard_code', type: 'string', isOptional: true },
+        { name: 'debug_logging_enabled', type: 'boolean' }, // B8: Structured logging
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
@@ -632,6 +633,39 @@ export const schema = appSchema({
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    // ============================================
+    // B7: Persistent Offline Queue
+    // ============================================
+    tableSchema({
+      name: 'pending_operations',
+      columns: [
+        { name: 'operation_type', type: 'string', isIndexed: true },
+        { name: 'payload', type: 'string' }, // JSON string
+        { name: 'attempts', type: 'number' },
+        { name: 'max_attempts', type: 'number' },
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'last_error', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'last_attempted_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    // ============================================
+    // B10: Feature Flags (Read-Only)
+    // ============================================
+    tableSchema({
+      name: 'feature_flags',
+      columns: [
+        { name: 'flag_key', type: 'string', isIndexed: true }, // Primary key
+        { name: 'enabled', type: 'boolean' },
+        { name: 'rollout_percent', type: 'number' },
+        { name: 'target_tiers', type: 'string' }, // JSON array string
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ],
     }),
   ],

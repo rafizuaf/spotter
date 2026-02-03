@@ -18,7 +18,7 @@ const getAllowedOrigin = (): string => {
 const corsHeaders = {
   "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-correlation-id", // B4: Allow correlation ID header
 };
 
 
@@ -40,7 +40,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
   }
 
+  // B4: Read correlation ID from header
+  const correlationId = req.headers.get("X-Correlation-ID");
+  
   try {
+    // B4: Log correlation ID at start of processing
+    if (correlationId) {
+      console.log(`[sync-push] correlationId: ${correlationId}`);
+    }
     // Get authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -369,11 +376,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const workoutEnded = (workout as { ended_at?: string | null } | null)?.ended_at;
 
         // 1. Award XP (already idempotent)
+        // B4: Pass correlation_id in body to downstream functions
         try {
           await supabaseAdmin.functions.invoke("award-xp", {
             body: {
               userId: user.id,
               setIds,
+              ...(correlationId && { correlation_id: correlationId }),
             },
           });
         } catch (error) {
@@ -386,6 +395,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           await supabaseAdmin.functions.invoke("calculate-level", {
             body: {
               userId: user.id,
+              ...(correlationId && { correlation_id: correlationId }),
             },
           });
         } catch (error) {
@@ -398,6 +408,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             await supabaseAdmin.functions.invoke("detect-pr", {
               body: {
                 workoutId,
+                ...(correlationId && { correlation_id: correlationId }),
               },
             });
           } catch (error) {
@@ -410,6 +421,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           await supabaseAdmin.functions.invoke("unlock-badge", {
             body: {
               userId: user.id,
+              ...(correlationId && { correlation_id: correlationId }),
             },
           });
         } catch (error) {
@@ -423,6 +435,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
               body: {
                 workoutId,
                 visibility: workoutVisibility,
+                ...(correlationId && { correlation_id: correlationId }),
               },
             });
           } catch (error) {

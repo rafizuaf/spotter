@@ -2,9 +2,12 @@
  * Monitoring Service
  * 
  * Centralized monitoring for errors, performance, and analytics
+ * 
+ * B8: Integrated with structured logger (logger.ts)
  */
 
 import * as Sentry from '@sentry/react-native';
+import { logger } from '../utils/logger';
 
 interface PerformanceMetric {
   name: string;
@@ -22,7 +25,7 @@ interface AnalyticsEvent {
  */
 export function initializeMonitoring(): void {
   if (__DEV__) {
-    console.log('[Monitoring] Initialized in development mode');
+    logger.info('Monitoring initialized in development mode');
     return;
   }
 
@@ -50,34 +53,39 @@ export function initializeMonitoring(): void {
  * Log error to monitoring service
  */
 export function logError(error: Error, context?: Record<string, unknown>): void {
-  if (__DEV__) {
-    console.error('[Error]', error, context);
-    return;
+  // B8: Use structured logger instead of console.error
+  logger.error('Error logged to monitoring', error, context);
+  
+  // Sentry capture is handled by logger.error() in production
+  if (!__DEV__) {
+    Sentry.captureException(error, {
+      extra: context,
+    });
   }
-
-  Sentry.captureException(error, {
-    extra: context,
-  });
 }
 
 /**
  * Log performance metric
  */
 export function logPerformance(metric: PerformanceMetric): void {
-  if (__DEV__) {
-    console.log(`[Performance] ${metric.name}: ${metric.duration}ms`, metric.metadata);
-    return;
-  }
-
-  Sentry.addBreadcrumb({
-    category: 'performance',
-    message: metric.name,
-    level: 'info',
-    data: {
-      duration: metric.duration,
-      ...metric.metadata,
-    },
+  // B8: Use structured logger
+  logger.info(`Performance: ${metric.name}`, {
+    duration: metric.duration,
+    ...metric.metadata,
   });
+  
+  // Sentry breadcrumb is handled by logger.info() in production
+  if (!__DEV__) {
+    Sentry.addBreadcrumb({
+      category: 'performance',
+      message: metric.name,
+      level: 'info',
+      data: {
+        duration: metric.duration,
+        ...metric.metadata,
+      },
+    });
+  }
 }
 
 /**
@@ -88,18 +96,18 @@ export function logPerformance(metric: PerformanceMetric): void {
  * - Optional: Amplitude, Mixpanel, etc. (configure via env vars)
  */
 export function trackEvent(event: AnalyticsEvent): void {
-  if (__DEV__) {
-    console.log('[Analytics]', event.name, event.properties);
-    return;
+  // B8: Use structured logger
+  logger.info(`Analytics: ${event.name}`, event.properties);
+  
+  // Sentry breadcrumb is handled by logger.info() in production
+  if (!__DEV__) {
+    Sentry.addBreadcrumb({
+      category: 'analytics',
+      message: event.name,
+      level: 'info',
+      data: event.properties,
+    });
   }
-
-  // Always log to Sentry as breadcrumb
-  Sentry.addBreadcrumb({
-    category: 'analytics',
-    message: event.name,
-    level: 'info',
-    data: event.properties,
-  });
 
   // Optional: Integrate with third-party analytics services
   // Example: Amplitude, Mixpanel, etc.

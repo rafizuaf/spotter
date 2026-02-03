@@ -4,46 +4,104 @@ import { database } from './index';
 import { supabase } from '../services/supabase';
 import { withRetry, parseError, ErrorCodes, logError } from '../utils/errorHandler';
 import { circuitBreaker, CircuitOpenError } from '../utils/circuitBreaker';
+import { v4 as uuid } from 'uuid';
 
-// Tables to sync
-const SYNC_TABLES = [
-  'users',
-  'user_settings',
-  'equipment_bases',
-  'exercises',
-  'routines',
-  'routine_exercises',
+// B4: Correlation ID header name
+const CORRELATION_ID_HEADER = 'X-Correlation-ID';
+
+/**
+ * B4: Generate correlation ID for request tracing
+ */
+function generateCorrelationId(): string {
+  return uuid();
+}
+
+/**
+ * B9: Check backend health before sync (optional)
+ * 
+ * Returns true if backend is healthy (200 response), false otherwise.
+ * Can be called before sync to avoid unnecessary requests when backend is down.
+ * 
+ * @returns Promise<boolean> - true if healthy, false if degraded/unavailable
+ */
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.functions.invoke('health', {
+      method: 'POST',
+    });
+
+    if (error) {
+      logError(error, 'health_check');
+      return false;
+    }
+
+    // Check if status is "ok"
+    return data?.status === 'ok';
+  } catch (error) {
+    logError(error, 'health_check');
+    return false;
+  }
+}
+
+// A4: Table tiers for optimized sync
+// CRITICAL: Always sync (core workout data, user settings)
+const CRITICAL_TABLES = [
   'workouts',
   'workout_sets',
-  'user_body_logs',
+  'routines',
+  'routine_exercises',
+  'user_settings',
+  'user_entitlements',
+  'users',
+  'exercises',
+  'equipment_bases',
+];
+
+// BACKGROUND: Sync every 5 min or on-demand (gamification, social)
+const BACKGROUND_TABLES = [
   'user_levels',
   'user_badges',
   'user_xp_logs',
-  'achievements', // Read-only from backend
+  'notifications',
+  'social_posts',
   'follows',
   'user_blocks',
-  'social_posts',
-  'notifications', // Pull notifications from server
-  'push_devices', // Push device tokens to server
-  'user_activity_weeks', // Weekly activity tracking (v2)
-  'user_streak_logs', // Streak tracking (v2)
-  'beginner_programs', // Read-only from backend (First 30 Days)
-  'beginner_program_days', // Read-only from backend (First 30 Days)
-  'user_program_enrollments', // User program progress (First 30 Days)
-  'user_program_day_progress', // User daily progress (First 30 Days)
-  'user_training_maxes', // Phase 2E: Training max per exercise
-  'advanced_programs', // Phase 2E: 5/3/1 etc. (read-only)
-  'advanced_program_days', // Phase 2E (read-only)
-  'user_advanced_program_enrollments', // Phase 2E
-  'user_entitlements', // Phase 2F: Monetization (READ-ONLY, pull-only)
-  'post_reactions', // Phase 2G: Feed reactions
-  'challenges', // Phase 2G: User-created challenges
-  'challenge_participants', // Phase 2G: Challenge participation
-  'leaderboards', // Phase 2G: Leaderboard definitions (READ-ONLY, pull-only)
-  'leaderboard_entries', // Phase 2G: Leaderboard rankings (READ-ONLY, pull-only)
-  'workout_partners', // Phase 2G: Workout partner sessions
-  'workout_partner_invitations', // Phase 2G: Workout partner invitations
+  'post_reactions',
+  'challenges',
+  'challenge_participants',
+  'leaderboards',
+  'leaderboard_entries',
+  'workout_partners',
+  'workout_partner_invitations',
+  'feature_flags', // B10: Feature flags (read-only, pull-only)
 ];
+
+// ON_DEMAND: Sync when feature opened (programs, body tracking, etc.)
+const ON_DEMAND_TABLES = [
+  'beginner_programs',
+  'beginner_program_days',
+  'user_program_enrollments',
+  'user_program_day_progress',
+  'advanced_programs',
+  'advanced_program_days',
+  'user_advanced_program_enrollments',
+  'user_training_maxes',
+  'achievements',
+  'user_body_logs',
+  'push_devices',
+  'user_activity_weeks',
+  'user_streak_logs',
+];
+
+// All tables (for full sync)
+const ALL_TABLES = [
+  ...CRITICAL_TABLES,
+  ...BACKGROUND_TABLES,
+  ...ON_DEMAND_TABLES,
+];
+
+// Legacy: Keep SYNC_TABLES for backward compatibility (deprecated, use tiered functions)
+const SYNC_TABLES = ALL_TABLES;
 
 interface SyncPullResponse {
   changes: Record<string, {
@@ -64,15 +122,31 @@ interface SyncPushPayload {
   idempotencyKey?: string; // A6: Optional idempotency key for deduplication
 }
 
+// A4: Sync options for tiered sync functions
+export interface SyncOptions {
+  idempotencyKey?: string;
+}
+
 /**
  * Pull changes from server
+ * A4: Accepts table list for tiered sync
  */
-async function pullChanges({ lastPulledAt }: { lastPulledAt: number | null }): Promise<SyncPullResponse> {
+async function pullChanges({ 
+  lastPulledAt, 
+  correlationId, 
+  tables = ALL_TABLES 
+}: { 
+  lastPulledAt: number | null; 
+  correlationId?: string;
+  tables?: string[];
+}): Promise<SyncPullResponse> {
   const { data, error } = await supabase.functions.invoke('sync-pull', {
     body: {
       lastPulledAt,
-      tables: SYNC_TABLES,
+      tables,
     },
+    // B4: Pass correlation ID as header
+    ...(correlationId && { headers: { [CORRELATION_ID_HEADER]: correlationId } }),
   });
 
   if (error) {
@@ -86,13 +160,15 @@ async function pullChanges({ lastPulledAt }: { lastPulledAt: number | null }): P
 /**
  * Push local changes to server
  */
-async function pushChanges({ changes, lastPulledAt, idempotencyKey }: SyncPushPayload): Promise<void> {
+async function pushChanges({ changes, lastPulledAt, idempotencyKey, correlationId }: SyncPushPayload & { correlationId?: string }): Promise<void> {
   const { error } = await supabase.functions.invoke('sync-push', {
     body: {
       changes,
       lastPulledAt,
       ...(idempotencyKey && { idempotencyKey }), // A6: Include idempotency key if provided
     },
+    // B4: Pass correlation ID as header
+    ...(correlationId && { headers: { [CORRELATION_ID_HEADER]: correlationId } }),
   });
 
   if (error) {
@@ -102,15 +178,46 @@ async function pushChanges({ changes, lastPulledAt, idempotencyKey }: SyncPushPa
 }
 
 /**
- * Main sync function
- * Call this to sync local database with server
- * 
- * Includes automatic retry with exponential backoff for network errors
- * 
- * @param options - Optional sync options
- * @param options.idempotencyKey - Optional idempotency key for deduplicating duplicate requests (A6)
+ * A4: Sync critical tables (workouts, sets, routines, settings)
+ * Used for immediate sync after workout completion
  */
-export async function syncDatabase(options?: { idempotencyKey?: string }): Promise<void> {
+export async function syncCritical(options?: SyncOptions): Promise<void> {
+  return syncTables(CRITICAL_TABLES, options);
+}
+
+/**
+ * A4: Sync background tables (gamification, social)
+ * Used for periodic background sync (every 5 min)
+ */
+export async function syncBackground(options?: SyncOptions): Promise<void> {
+  return syncTables(BACKGROUND_TABLES, options);
+}
+
+/**
+ * A4: Sync on-demand tables (programs, body tracking)
+ * Called when user opens specific features
+ */
+export async function syncOnDemand(tables: string[], options?: SyncOptions): Promise<void> {
+  // Validate tables are in ON_DEMAND_TABLES
+  const invalidTables = tables.filter(t => !ON_DEMAND_TABLES.includes(t));
+  if (invalidTables.length > 0) {
+    throw new Error(`Invalid on-demand tables: ${invalidTables.join(', ')}`);
+  }
+  return syncTables(tables, options);
+}
+
+/**
+ * A4: Sync all tables (full sync)
+ * Used for pull-to-refresh or initial sync
+ */
+export async function syncAll(options?: SyncOptions): Promise<void> {
+  return syncTables(ALL_TABLES, options);
+}
+
+/**
+ * A4: Internal helper to sync specific tables
+ */
+async function syncTables(tables: string[], options?: SyncOptions): Promise<void> {
   // B3: Check circuit breaker before attempting sync
   if (!circuitBreaker.canAttempt()) {
     const cooldownRemaining = circuitBreaker.getCooldownRemaining();
@@ -122,7 +229,10 @@ export async function syncDatabase(options?: { idempotencyKey?: string }): Promi
   }
 
   try {
-    // A6: Capture idempotencyKey from options for use in pushChanges closure
+    // B4: Generate correlation ID for this sync operation
+    const correlationId = generateCorrelationId();
+    
+    // A6: Capture idempotencyKey from options
     const idempotencyKey = options?.idempotencyKey;
 
     await withRetry(
@@ -131,7 +241,12 @@ export async function syncDatabase(options?: { idempotencyKey?: string }): Promi
           database,
           pullChanges: async ({ lastPulledAt }) => {
             const lastPulled: number | null = lastPulledAt !== undefined ? lastPulledAt : null;
-            const response = await pullChanges({ lastPulledAt: lastPulled });
+            // A4: Pass table list to pullChanges
+            const response = await pullChanges({ 
+              lastPulledAt: lastPulled, 
+              correlationId,
+              tables 
+            });
             return {
               changes: response.changes,
               timestamp: response.timestamp !== undefined ? response.timestamp : Date.now(),
@@ -139,7 +254,8 @@ export async function syncDatabase(options?: { idempotencyKey?: string }): Promi
           },
           pushChanges: async ({ changes, lastPulledAt }) => {
             // A6: Pass idempotencyKey via closure
-            await pushChanges({ changes, lastPulledAt, idempotencyKey });
+            // B4: Pass correlation ID to pushChanges
+            await pushChanges({ changes, lastPulledAt, idempotencyKey, correlationId });
           },
           migrationsEnabledAtVersion: 1,
         });
@@ -156,7 +272,6 @@ export async function syncDatabase(options?: { idempotencyKey?: string }): Promi
     circuitBreaker.recordSuccess();
   } catch (error) {
     // B3: Record failure (increment circuit breaker failure count)
-    // Only record failure if it's not a CircuitOpenError (which is already handled)
     if (!(error instanceof CircuitOpenError)) {
       circuitBreaker.recordFailure();
     }
@@ -168,8 +283,22 @@ export async function syncDatabase(options?: { idempotencyKey?: string }): Promi
 }
 
 /**
+ * Main sync function (backward compatibility)
+ * A4: Now calls syncAll() - use syncCritical(), syncBackground(), or syncOnDemand() for better performance
+ * 
+ * @deprecated Use syncCritical(), syncBackground(), syncOnDemand(), or syncAll() instead
+ * @param options - Optional sync options
+ * @param options.idempotencyKey - Optional idempotency key for deduplicating duplicate requests (A6)
+ */
+export async function syncDatabase(options?: SyncOptions): Promise<void> {
+  // A4: Default to syncAll for backward compatibility
+  return syncAll(options);
+}
+
+/**
  * Check if we have pending local changes
  * 
+ * A5: Optimized to use fetchCount() instead of fetching all records.
  * This checks for records that:
  * 1. Don't have a server_id (newly created, not synced)
  * 2. Have been modified locally (updated_at is newer than last sync)
@@ -193,20 +322,26 @@ export async function hasPendingChanges(): Promise<boolean> {
       'workout_partner_invitations',
     ];
 
+    // A5: Use fetchCount() with indexed query instead of fetching all records
+    // Short-circuit on first table with unsynced records
     for (const tableName of syncableTables) {
       const collection = database.collections.get(tableName);
       
       // Check for records without server_id (newly created, not yet synced)
-      // WatermelonDB stores server_id as null for local-only records
-      const allRecords = await collection.query().fetch();
+      // WatermelonDB: server_id is null or empty string for local-only records
+      // Use Q.or to check both null and empty string cases
+      const count = await collection
+        .query(
+          Q.where('deleted_at', null), // Exclude soft-deleted records
+          Q.or(
+            Q.where('server_id', null),
+            Q.where('server_id', '')
+          )
+        )
+        .fetchCount();
       
-      // Check for records without server_id (newly created, not synced)
-      // WatermelonDB models have serverId as a text field
-      for (const record of allRecords) {
-        const serverId = (record as { serverId?: string | null }).serverId;
-        if (!serverId || serverId === '') {
-          return true; // Found unsynced record
-        }
+      if (count > 0) {
+        return true; // Found unsynced record
       }
     }
 

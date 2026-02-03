@@ -8,9 +8,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { hasPendingChanges, syncDatabase } from '../db/sync';
+import { hasPendingChanges, syncAll } from '../db/sync'; // A4: Use syncAll for manual sync (pull-to-refresh)
 import { useAuthStore } from '../stores/authStore';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
+import { useOfflineQueueStore } from '../stores/offlineQueueStore'; // B7: Show pending queue count
 import { CircuitOpenError } from '../utils/circuitBreaker';
 import { logError } from '../utils/errorHandler';
 
@@ -28,12 +29,13 @@ export default function SyncStatusIndicator({
   const colors = useTheme();
   const { user } = useAuthStore();
   const { lastError: backgroundSyncError, clearError } = useSyncStatusStore();
+  const { pendingCount: queuePendingCount, getPendingCount } = useOfflineQueueStore(); // B7: Pending queue count
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasPending, setHasPending] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Check for pending changes periodically
+  // Check for pending changes and queue count periodically
   useEffect(() => {
     if (!user) return;
 
@@ -41,6 +43,8 @@ export default function SyncStatusIndicator({
       try {
         const pending = await hasPendingChanges();
         setHasPending(pending);
+        // B7: Also update queue count
+        await getPendingCount();
       } catch (err) {
         logError(err, 'SyncStatusIndicator_checkPending');
       }
@@ -53,7 +57,7 @@ export default function SyncStatusIndicator({
     const interval = setInterval(checkPending, 30000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, getPendingCount]);
 
   const handleSync = async () => {
     if (isSyncing || !user) return;
@@ -64,7 +68,8 @@ export default function SyncStatusIndicator({
     clearError();
 
     try {
-      await syncDatabase();
+      // A4: Use syncAll for manual sync (full sync on pull-to-refresh)
+      await syncAll();
       setHasPending(false);
       setLastSyncTime(new Date());
       // B2: Clear background sync error on successful sync
@@ -134,11 +139,15 @@ export default function SyncStatusIndicator({
               <ActivityIndicator size="small" color={colors.primary} style={styles.icon} />
               <Text style={[styles.statusText, { color: colors.textPrimary }]}>Syncing...</Text>
             </>
-          ) : hasPending || backgroundSyncError ? (
+          ) : hasPending || backgroundSyncError || queuePendingCount > 0 ? (
             <>
               <Ionicons name="cloud-upload-outline" size={20} color={colors.warning} style={styles.icon} />
               <Text style={[styles.statusText, { color: colors.warning }]}>
-                {backgroundSyncError ? 'Saved locally; sync pending' : 'Pending changes'}
+                {backgroundSyncError 
+                  ? 'Saved locally; sync pending' 
+                  : queuePendingCount > 0
+                  ? `${queuePendingCount} pending ${queuePendingCount === 1 ? 'operation' : 'operations'}`
+                  : 'Pending changes'}
               </Text>
             </>
           ) : (

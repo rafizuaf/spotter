@@ -41,6 +41,7 @@ export default class UserSettings extends Model {
   @text('workout_mode') workoutMode!: string;
   @field('show_profile_rankings') showProfileRankings!: boolean;
   @text('prominent_rank_leaderboard_code') prominentRankLeaderboardCode?: string;
+  @field('debug_logging_enabled') debugLoggingEnabled!: boolean; // B8: Structured logging
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
   @date('deleted_at') deletedAt?: Date;

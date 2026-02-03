@@ -36,6 +36,8 @@ import type Leaderboard from './models/Leaderboard';
 import type LeaderboardEntry from './models/LeaderboardEntry';
 import type WorkoutPartner from './models/WorkoutPartner';
 import type WorkoutPartnerInvitation from './models/WorkoutPartnerInvitation';
+import type PendingOperation from './models/PendingOperation'; // B7: Persistent offline queue
+import type FeatureFlag from './models/FeatureFlag'; // B10: Feature flags
 
 // Create the adapter
 const adapter = new SQLiteAdapter({
@@ -92,5 +94,11 @@ export const leaderboardsCollection = database.get<Leaderboard>('leaderboards');
 export const leaderboardEntriesCollection = database.get<LeaderboardEntry>('leaderboard_entries');
 export const workoutPartnersCollection = database.get<WorkoutPartner>('workout_partners');
 export const workoutPartnerInvitationsCollection = database.get<WorkoutPartnerInvitation>('workout_partner_invitations');
+
+// B7: Persistent offline queue
+export const pendingOperationsCollection = database.get<PendingOperation>('pending_operations');
+
+// B10: Feature flags (read-only)
+export const featureFlagsCollection = database.get<FeatureFlag>('feature_flags');
 
 export default database;

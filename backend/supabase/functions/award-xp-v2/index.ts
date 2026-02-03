@@ -5,6 +5,12 @@ import { createClient } from "jsr:@supabase/supabase-js";
 import { checkRateLimit, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { getResponseHeaders } from "../_shared/security.ts";
 
+// B5: API Versioning - v2 example
+// This demonstrates the versioning pattern with a hypothetical breaking change:
+// - v2 response includes additional metadata (level, levelProgress)
+// - v1 response: { success, xpAwarded, todayTotal }
+// - v2 response: { success, xpAwarded, todayTotal, level, levelProgress, nextLevelXp }
+
 // CORS: Restrict to specific origin for security
 const getAllowedOrigin = (): string => {
   const allowedOrigin = Deno.env.get("FRONTEND_URL") || "https://spotter-app.com";
@@ -14,20 +20,20 @@ const getAllowedOrigin = (): string => {
 const corsHeaders = {
   "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-correlation-id", // B4: Allow correlation ID header
+    "authorization, x-client-info, apikey, content-type, x-correlation-id, x-api-version", // B5: Allow API version header
 };
 
 // XP Configuration (LOCKED v1)
 const XP_PER_SET = 10;
 const XP_WORKOUT_BONUS = 50;
-const DAILY_XP_CAP = 1000; // Max XP per day (100 sets worth)
-const WORKOUT_XP_CAP = 500; // Max XP per workout (50 sets worth)
-const MAX_SETS_PER_REQUEST = 100; // Prevent abuse - no workout has 100+ sets
+const DAILY_XP_CAP = 1000;
+const WORKOUT_XP_CAP = 500;
+const MAX_SETS_PER_REQUEST = 100;
 
 interface AwardXpRequest {
   userId: string;
   setIds: string[];
-  correlation_id?: string; // B4: Optional correlation ID for tracing
+  correlation_id?: string;
 }
 
 interface XpLog {
@@ -45,6 +51,16 @@ interface Workout {
   ended_at: string | null;
 }
 
+// B5: v2 Response includes level information
+interface AwardXpV2Response {
+  success: boolean;
+  xpAwarded: number;
+  todayTotal: number;
+  level: number; // NEW in v2
+  levelProgress: number; // NEW in v2 (0-100)
+  nextLevelXp: number; // NEW in v2
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -52,9 +68,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // B4: Read and log correlation ID (from header or body)
-    const correlationIdFromHeader = req.headers.get("X-Correlation-ID");
+    // B5: Read API version header (optional, defaults to latest)
+    const apiVersion = req.headers.get("X-API-Version") || "2";
+    const correlationId = req.headers.get("X-Correlation-ID");
     
+    if (correlationId) {
+      console.log(`[award-xp-v2] API Version: ${apiVersion}, Correlation-ID: ${correlationId}`);
+    }
+
     // SECURITY: Authenticate user first
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -97,11 +118,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const { userId, setIds, correlation_id: correlationIdFromBody }: AwardXpRequest = await req.json();
     
-    // B4: Use correlation ID from header (preferred) or body (for internal calls)
-    const correlationId = correlationIdFromHeader || correlationIdFromBody;
-    if (correlationId) {
-      console.log(`[award-xp] correlationId: ${correlationId}`);
-    }
+    const finalCorrelationId = correlationId || correlationIdFromBody;
 
     if (!userId || !setIds || setIds.length === 0) {
       return new Response(
@@ -124,7 +141,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // SECURITY: Rate limiting - prevent abuse
+    // SECURITY: Rate limiting
     const rateLimit = await checkRateLimit(
       user.id,
       'award-xp',
@@ -153,7 +170,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate set count to prevent abuse
+    // Validate set count
     if (setIds.length > MAX_SETS_PER_REQUEST) {
       return new Response(
         JSON.stringify({
@@ -201,11 +218,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const typedSets = sets as WorkoutSet[];
     const workoutId = typedSets[0].workout_id;
 
-    // FIX: Get user's timezone from workout or user_settings for accurate daily cap calculation
-    // This ensures daily cap resets at midnight in user's local timezone, not server timezone
+    // Get user's timezone (same logic as v1)
     let userTimezone: string | null = null;
     
-    // Try to get timezone from the workout first (most accurate, reflects when workout happened)
     if (workoutId) {
       const { data: workout } = await supabaseAdmin
         .from("workouts")
@@ -218,7 +233,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
     
-    // Fall back to user_settings if workout doesn't have timezone
     if (!userTimezone) {
       const { data: userSettings } = await supabaseAdmin
         .from("user_settings")
@@ -231,26 +245,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // Calculate today's start in user's timezone, then convert to UTC for database query
     const now = new Date();
     let todayStartUTC: Date;
     
     if (userTimezone) {
-      // Get current date/time string in user's timezone
       const nowInUserTz = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
       const todayInUserTz = new Date(nowInUserTz);
       todayInUserTz.setHours(0, 0, 0, 0);
-      
-      // Calculate UTC offset and adjust
       const offsetMs = now.getTime() - nowInUserTz.getTime();
       todayStartUTC = new Date(todayInUserTz.getTime() + offsetMs);
     } else {
-      // Default to UTC if no timezone available
       todayStartUTC = new Date(now);
       todayStartUTC.setUTCHours(0, 0, 0, 0);
     }
 
-    // Get today's XP total (using user's timezone-adjusted start time)
+    // Get today's XP total
     const { data: todayXpData } = await supabaseAdmin
       .from("user_xp_logs")
       .select("xp_amount")
@@ -264,15 +273,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ) || 0;
 
     if (todayXpTotal >= DAILY_XP_CAP) {
+      // B5: v2 response includes level info even when cap reached
+      const levelData = await getUserLevelData(supabaseAdmin, userId);
       return new Response(
-        JSON.stringify({ message: "Daily XP cap reached", xpAwarded: 0 }),
+        JSON.stringify({
+          success: true,
+          xpAwarded: 0,
+          todayTotal: todayXpTotal,
+          ...levelData,
+        } as AwardXpV2Response),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     let xpAwarded = 0;
 
-    // Get existing XP logs for these sets (idempotency check)
+    // Get existing XP logs for idempotency
     const { data: existingLogs } = await supabaseAdmin
       .from("user_xp_logs")
       .select("source_id")
@@ -284,16 +300,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       (existingLogs as XpLog[] | null)?.map((log) => log.source_id) || []
     );
 
-    // Get XP already awarded for this workout
+    // Get workout XP total
     const { data: workoutXpData } = await supabaseAdmin
       .from("user_xp_logs")
       .select("xp_amount")
       .eq("user_id", userId)
       .eq("source_type", "SET")
-      .in(
-        "source_id",
-        typedSets.map((s) => s.id)
-      );
+      .in("source_id", typedSets.map((s) => s.id));
 
     const workoutXpTotal =
       (workoutXpData as XpLog[] | null)?.reduce(
@@ -303,12 +316,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Award XP for each new set
     for (const set of typedSets) {
-      // Skip if already awarded (idempotency)
       if (existingSetIds.has(set.id)) {
         continue;
       }
 
-      // Check caps
       if (todayXpTotal + xpAwarded >= DAILY_XP_CAP) {
         break;
       }
@@ -317,7 +328,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       }
 
-      // Award XP for this set
       const { error: insertError } = await supabaseAdmin
         .from("user_xp_logs")
         .insert({
@@ -342,7 +352,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const typedWorkout = workout as Workout | null;
 
     if (typedWorkout?.ended_at) {
-      // Check if workout bonus already awarded
       const { data: existingBonus } = await supabaseAdmin
         .from("user_xp_logs")
         .select("id")
@@ -372,16 +381,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       await updateUserLevel(supabaseAdmin, userId);
     }
 
+    // B5: v2 response includes level information
+    const levelData = await getUserLevelData(supabaseAdmin, userId);
+
     return new Response(
       JSON.stringify({
         success: true,
         xpAwarded,
         todayTotal: todayXpTotal + xpAwarded,
-      }),
+        ...levelData,
+      } as AwardXpV2Response),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Award XP error:", error);
+    console.error("Award XP v2 error:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
@@ -393,10 +406,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 /**
  * Update user level based on total XP
- * Level formula: level = floor(sqrt(totalXp / 100)) + 1
  */
 async function updateUserLevel(supabase: ReturnType<typeof createClient>, userId: string): Promise<void> {
-  // Calculate total XP
   const { data: xpLogs } = await supabase
     .from("user_xp_logs")
     .select("xp_amount")
@@ -406,14 +417,10 @@ async function updateUserLevel(supabase: ReturnType<typeof createClient>, userId
     (xpLogs as XpLog[] | null)?.reduce((sum, log) => sum + log.xp_amount, 0) ||
     0;
 
-  // Calculate level (quadratic-lite formula)
   const level = Math.floor(Math.sqrt(totalXp / 100)) + 1;
-
-  // Calculate XP needed for next level
   const xpForNextLevel = Math.pow(level, 2) * 100;
   const xpToNextLevel = xpForNextLevel - totalXp;
 
-  // Update user_levels cache
   await supabase.from("user_levels").upsert(
     {
       user_id: userId,
@@ -424,4 +431,42 @@ async function updateUserLevel(supabase: ReturnType<typeof createClient>, userId
     },
     { onConflict: "user_id" }
   );
+}
+
+/**
+ * B5: v2 helper - Get user level data for response
+ */
+async function getUserLevelData(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<{ level: number; levelProgress: number; nextLevelXp: number }> {
+  const { data: levelData } = await supabase
+    .from("user_levels")
+    .select("level, xp_to_next_level, total_xp")
+    .eq("user_id", userId)
+    .single();
+
+  if (levelData) {
+    const level = levelData.level as number;
+    const totalXp = levelData.total_xp as number;
+    const xpToNextLevel = levelData.xp_to_next_level as number;
+    const xpForCurrentLevel = Math.pow(level - 1, 2) * 100;
+    const xpForNextLevel = Math.pow(level, 2) * 100;
+    const xpInCurrentLevel = totalXp - xpForCurrentLevel;
+    const xpNeededForLevel = xpForNextLevel - xpForCurrentLevel;
+    const levelProgress = Math.min(100, Math.max(0, (xpInCurrentLevel / xpNeededForLevel) * 100));
+
+    return {
+      level,
+      levelProgress: Math.round(levelProgress * 100) / 100, // Round to 2 decimals
+      nextLevelXp: xpToNextLevel,
+    };
+  }
+
+  // Default if no level data
+  return {
+    level: 1,
+    levelProgress: 0,
+    nextLevelXp: 100,
+  };
 }

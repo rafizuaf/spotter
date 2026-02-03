@@ -17,7 +17,7 @@ const getAllowedOrigin = (): string => {
 const corsHeaders = {
   "Access-Control-Allow-Origin": getAllowedOrigin(),
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-correlation-id", // B4: Allow correlation ID header
 };
 
 interface PullRequest {
@@ -35,6 +35,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: getResponseHeaders(corsHeaders) });
+  }
+
+  // B4: Read and log correlation ID
+  const correlationId = req.headers.get("X-Correlation-ID");
+  if (correlationId) {
+    console.log(`[sync-pull] correlationId: ${correlationId}`);
   }
 
   try {

@@ -1,6 +1,10 @@
 /**
  * Centralized error handling utilities
+ * 
+ * B8: Uses structured logger (logger.ts) instead of console.error
  */
+
+import { logger } from './logger';
 
 export interface AppError {
   code: string;
@@ -144,34 +148,23 @@ function isSupabaseError(error: unknown): boolean {
 }
 
 /**
- * Log error to console (and potentially to a monitoring service)
+ * Log error using structured logger
+ * B8: Replaced console.error with logger.error()
  */
 export function logError(error: unknown, context?: string): void {
   const appError = parseError(error);
 
-  console.error(`[Error${context ? ` - ${context}` : ''}]`, {
-    code: appError.code,
-    message: appError.message,
-    userMessage: appError.userMessage,
-    originalError: appError.originalError,
-  });
-
-  // Send to error monitoring service (Sentry)
-  if (!__DEV__) {
-    try {
-      const { logError: logToMonitoring } = require('../services/monitoring');
-      const errorToLog = appError.originalError instanceof Error 
-        ? appError.originalError 
-        : new Error(appError.message);
-      logToMonitoring(errorToLog, { 
-        code: appError.code, 
-        userMessage: appError.userMessage,
-        context 
-      });
-    } catch (e) {
-      // Monitoring service not available, ignore
+  // B8: Use structured logger
+  logger.error(
+    `Error${context ? ` - ${context}` : ''}`,
+    appError.originalError instanceof Error ? appError.originalError : new Error(appError.message),
+    {
+      code: appError.code,
+      message: appError.message,
+      userMessage: appError.userMessage,
+      context,
     }
-  }
+  );
 }
 
 /**
