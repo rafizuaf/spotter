@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 14, // B10: Feature flags (feature_flags)
+  version: 16, // C7: Community templates (usage_count)
   tables: [
     // ============================================
     // Users & Settings
@@ -34,6 +34,7 @@ export const schema = appSchema({
         { name: 'distance_unit_preference', type: 'string' },
         { name: 'theme_preference', type: 'string' },
         { name: 'keep_screen_awake', type: 'boolean' },
+        { name: 'timer_enabled', type: 'boolean' }, // C4: Enable/disable rest timer
         { name: 'timer_auto_start', type: 'boolean' },
         { name: 'timer_vibration_enabled', type: 'boolean' },
         { name: 'timer_sound_enabled', type: 'boolean' },
@@ -100,6 +101,7 @@ export const schema = appSchema({
         { name: 'name', type: 'string' },
         { name: 'notes', type: 'string', isOptional: true },
         { name: 'is_public', type: 'boolean' },
+        { name: 'usage_count', type: 'number' }, // C7: Usage count for community templates
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },

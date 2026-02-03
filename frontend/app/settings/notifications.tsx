@@ -17,20 +17,21 @@ import { syncDatabase } from '../../src/db/sync';
 import type UserSettings from '../../src/db/models/UserSettings';
 import { useTheme } from '../../src/hooks/useTheme';
 
+// C6: Notification categories
 interface NotificationPreferences {
-  follows: boolean;
-  achievements: boolean;
-  prs: boolean;
-  levelUp: boolean;
-  reminders: boolean;
+  WORKOUT_PR: boolean; // PR notifications
+  BADGES_LEVELS: boolean; // Badge unlocks and level ups
+  CHALLENGES: boolean; // Challenge-related notifications
+  SOCIAL: boolean; // Follows, reactions, etc.
+  REMINDERS: boolean; // Workout reminders
 }
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
-  follows: true,
-  achievements: true,
-  prs: true,
-  levelUp: true,
-  reminders: true,
+  WORKOUT_PR: true,
+  BADGES_LEVELS: true,
+  CHALLENGES: true,
+  SOCIAL: true,
+  REMINDERS: true,
 };
 
 export default function NotificationSettingsScreen() {
@@ -124,20 +125,20 @@ export default function NotificationSettingsScreen() {
           Choose which notifications you'd like to receive
         </Text>
 
-        {/* Social notifications */}
+        {/* C6: Social notifications */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Social</Text>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.switchRow}>
               <View style={styles.switchLabel}>
-                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>New Followers</Text>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Social</Text>
                 <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
-                  When someone starts following you
+                  Follows, reactions, and social interactions
                 </Text>
               </View>
               <Switch
-                value={preferences.follows}
-                onValueChange={(value) => updatePreference('follows', value)}
+                value={preferences.SOCIAL}
+                onValueChange={(value) => updatePreference('SOCIAL', value)}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor={colors.white}
               />
@@ -145,26 +146,11 @@ export default function NotificationSettingsScreen() {
           </View>
         </View>
 
-        {/* Achievement notifications */}
+        {/* C6: Achievement notifications */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Achievements</Text>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.switchRow}>
-              <View style={styles.switchLabel}>
-                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Badges</Text>
-                <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
-                  When you unlock a new badge
-                </Text>
-              </View>
-              <Switch
-                value={preferences.achievements}
-                onValueChange={(value) => updatePreference('achievements', value)}
-                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
-
-            <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
               <View style={styles.switchLabel}>
                 <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Personal Records</Text>
                 <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
@@ -172,8 +158,8 @@ export default function NotificationSettingsScreen() {
                 </Text>
               </View>
               <Switch
-                value={preferences.prs}
-                onValueChange={(value) => updatePreference('prs', value)}
+                value={preferences.WORKOUT_PR}
+                onValueChange={(value) => updatePreference('WORKOUT_PR', value)}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor={colors.white}
               />
@@ -181,14 +167,14 @@ export default function NotificationSettingsScreen() {
 
             <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
               <View style={styles.switchLabel}>
-                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Level Up</Text>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Badges & Levels</Text>
                 <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
-                  When you reach a new level
+                  Badge unlocks and level ups
                 </Text>
               </View>
               <Switch
-                value={preferences.levelUp}
-                onValueChange={(value) => updatePreference('levelUp', value)}
+                value={preferences.BADGES_LEVELS}
+                onValueChange={(value) => updatePreference('BADGES_LEVELS', value)}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor={colors.white}
               />
@@ -196,7 +182,28 @@ export default function NotificationSettingsScreen() {
           </View>
         </View>
 
-        {/* Reminder notifications */}
+        {/* C6: Challenge notifications */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Challenges</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabel}>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Challenges</Text>
+                <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+                  Challenge invitations, updates, and results
+                </Text>
+              </View>
+              <Switch
+                value={preferences.CHALLENGES}
+                onValueChange={(value) => updatePreference('CHALLENGES', value)}
+                trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* C6: Reminder notifications */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Reminders</Text>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -208,8 +215,8 @@ export default function NotificationSettingsScreen() {
                 </Text>
               </View>
               <Switch
-                value={preferences.reminders}
-                onValueChange={(value) => updatePreference('reminders', value)}
+                value={preferences.REMINDERS}
+                onValueChange={(value) => updatePreference('REMINDERS', value)}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor={colors.white}
               />

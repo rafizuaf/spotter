@@ -36,6 +36,7 @@ export default function PreferencesSettingsScreen() {
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
   const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('km');
   const [keepScreenAwake, setKeepScreenAwake] = useState(true);
+  const [timerEnabled, setTimerEnabled] = useState(true); // C4: Timer On/Off
   const [timerAutoStart, setTimerAutoStart] = useState(true);
   const [timerVibration, setTimerVibration] = useState(true);
   const [timerSound, setTimerSound] = useState(true);
@@ -61,6 +62,7 @@ export default function PreferencesSettingsScreen() {
         setWeightUnit((record.weightUnitPreference as WeightUnit) || 'kg');
         setDistanceUnit((record.distanceUnitPreference as DistanceUnit) || 'km');
         setKeepScreenAwake(record.keepScreenAwake ?? true);
+        setTimerEnabled(record.timerEnabled ?? true); // C4: Timer enabled by default
         setTimerAutoStart(record.timerAutoStart ?? true);
         setTimerVibration(record.timerVibrationEnabled ?? true);
         setTimerSound(record.timerSoundEnabled ?? true);
@@ -83,6 +85,7 @@ export default function PreferencesSettingsScreen() {
           record.weightUnitPreference = weightUnit;
           record.distanceUnitPreference = distanceUnit;
           record.keepScreenAwake = keepScreenAwake;
+          record.timerEnabled = timerEnabled; // C4: Timer On/Off
           record.timerAutoStart = timerAutoStart;
           record.timerVibrationEnabled = timerVibration;
           record.timerSoundEnabled = timerSound;
@@ -230,21 +233,50 @@ export default function PreferencesSettingsScreen() {
                 thumbColor={colors.white}
               />
             </View>
+          </View>
+        </View>
 
-            <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
+        {/* C4: Rest Timer Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Rest Timer</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.switchRow}>
               <View style={styles.switchLabel}>
-                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Auto-start Rest Timer</Text>
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Rest Timer</Text>
                 <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
-                  Automatically start timer after logging a set
+                  Enable rest timer during workouts
                 </Text>
               </View>
               <Switch
-                value={timerAutoStart}
-                onValueChange={setTimerAutoStart}
+                value={timerEnabled}
+                onValueChange={(value) => {
+                  setTimerEnabled(value);
+                  // C4: If disabling timer, also disable auto-start
+                  if (!value) {
+                    setTimerAutoStart(false);
+                  }
+                }}
                 trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
                 thumbColor={colors.white}
               />
             </View>
+
+            {timerEnabled && (
+              <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
+                <View style={styles.switchLabel}>
+                  <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Auto-start After Set</Text>
+                  <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+                    Automatically start timer after logging a set
+                  </Text>
+                </View>
+                <Switch
+                  value={timerAutoStart}
+                  onValueChange={setTimerAutoStart}
+                  trackColor={{ false: colors.surfaceElevated, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              </View>
+            )}
           </View>
         </View>
 

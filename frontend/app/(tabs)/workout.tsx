@@ -64,7 +64,7 @@ export default function WorkoutScreen() {
   const [workoutMode, setWorkoutMode] = useState<'SIMPLE' | 'FULL'>('SIMPLE');
   const [weightUnit, setWeightUnit] = useState<'KG' | 'LBS'>('KG');
   const [userGender, setUserGender] = useState<Gender>('OTHER');
-  const [quickSelectEnabled, setQuickSelectEnabled] = useState(true);
+  const quickSelectEnabled = true;
   const [tier, setTier] = useState<'FREE' | 'PRO' | 'ELITE'>('FREE');
 
   // Phase 2G: Workout Partners
@@ -87,6 +87,7 @@ export default function WorkoutScreen() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const {
     isRunning: timerIsRunning,
+    timerEnabled, // C4: Timer enabled/disabled setting
     autoStart: timerAutoStart,
     startTimer,
     stopTimer,
@@ -195,6 +196,7 @@ export default function WorkoutScreen() {
 
           // Load timer preferences
           loadTimerPreferences({
+            timerEnabled: record.timerEnabled ?? true, // C4: Timer enabled by default
             timerAutoStart: record.timerAutoStart ?? true,
             timerVibrationEnabled: record.timerVibrationEnabled ?? true,
             timerSoundEnabled: record.timerSoundEnabled ?? true,
@@ -233,9 +235,9 @@ export default function WorkoutScreen() {
       // Toggle the set completion
       toggleSetComplete(exerciseEntryId, setId);
 
-      // If the set is now being marked as completed (was not completed before)
-      // and timer auto-start is enabled, start the rest timer
-      if (!wasCompleted && timerAutoStart) {
+      // C4: If the set is now being marked as completed (was not completed before)
+      // and timer is enabled and auto-start is enabled, start the rest timer
+      if (!wasCompleted && timerEnabled && timerAutoStart) {
         setShowRestTimer(true);
         startTimer();
       }
@@ -249,8 +251,8 @@ export default function WorkoutScreen() {
       // Complete the set with weight and reps in one action
       quickCompleteSet(exerciseEntryId, setId, weight, reps);
 
-      // Start rest timer if auto-start is enabled
-      if (timerAutoStart) {
+      // C4: Start rest timer if timer is enabled and auto-start is enabled
+      if (timerEnabled && timerAutoStart) {
         setShowRestTimer(true);
         startTimer();
       }
@@ -721,11 +723,14 @@ export default function WorkoutScreen() {
       )}
 
       {/* Rest Timer */}
-      <RestTimer
-        visible={showRestTimer || timerIsRunning}
-        onDismiss={handleTimerDismiss}
-        onComplete={handleTimerComplete}
-      />
+      {/* C4: Only show RestTimer if timer is enabled */}
+      {timerEnabled && (
+        <RestTimer
+          visible={showRestTimer || timerIsRunning}
+          onDismiss={handleTimerDismiss}
+          onComplete={handleTimerComplete}
+        />
+      )}
     </View>
   );
 }

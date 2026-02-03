@@ -36,21 +36,28 @@ interface CreateNotificationRequest {
   sendPush?: boolean;
 }
 
+// C6: Updated notification categories
 interface NotificationPreferences {
-  follow: boolean;
-  achievement: boolean;
-  pr: boolean;
-  streak: boolean;
-  system: boolean;
+  WORKOUT_PR?: boolean; // PR notifications
+  BADGES_LEVELS?: boolean; // Badge unlocks and level ups
+  CHALLENGES?: boolean; // Challenge-related notifications
+  SOCIAL?: boolean; // Follows, reactions, etc.
+  REMINDERS?: boolean; // Workout reminders
+  // Legacy keys (for backward compatibility)
+  follow?: boolean;
+  achievement?: boolean;
+  pr?: boolean;
+  streak?: boolean;
+  system?: boolean;
 }
 
 // Default preferences if user hasn't set any
 const defaultPreferences: NotificationPreferences = {
-  follow: true,
-  achievement: true,
-  pr: true,
-  streak: true,
-  system: true,
+  WORKOUT_PR: true,
+  BADGES_LEVELS: true,
+  CHALLENGES: true,
+  SOCIAL: true,
+  REMINDERS: true,
 };
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -149,27 +156,42 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 5. Map notification type to preference key
-    const typeToPreferenceKey: Record<string, keyof NotificationPreferences> = {
-      FOLLOW: "follow",
-      ACHIEVEMENT: "achievement",
-      PR: "pr",
-      STREAK: "streak",
-      SYSTEM: "system",
-      LEVEL_UP: "achievement",
-      LIKE: "follow",
-      COMMENT: "follow",
+    // C6: Map notification type to category
+    const typeToCategory: Record<string, keyof NotificationPreferences> = {
+      FOLLOW: "SOCIAL",
+      LIKE: "SOCIAL",
+      COMMENT: "SOCIAL",
+      PR: "WORKOUT_PR",
+      ACHIEVEMENT: "BADGES_LEVELS",
+      LEVEL_UP: "BADGES_LEVELS",
+      STREAK: "BADGES_LEVELS",
+      SYSTEM: "REMINDERS", // System notifications treated as reminders
+      // Legacy mapping (for backward compatibility)
+      follow: "SOCIAL",
+      achievement: "BADGES_LEVELS",
+      pr: "WORKOUT_PR",
+      streak: "BADGES_LEVELS",
+      system: "REMINDERS",
     };
 
-    const preferenceKey = typeToPreferenceKey[type] || "system";
+    const category = typeToCategory[type] || "REMINDERS";
 
-    // 6. Check if user wants this type of notification
-    if (!preferences[preferenceKey]) {
+    // C6: Check if user wants this category of notification
+    // Support both new category keys and legacy keys for backward compatibility
+    const isEnabled =
+      preferences[category] !== false && // New category system (defaults to true if not set)
+      (preferences[category] === true || // Explicitly enabled
+        (category === "SOCIAL" && preferences.follow !== false) || // Legacy: follow
+        (category === "WORKOUT_PR" && preferences.pr !== false) || // Legacy: pr
+        (category === "BADGES_LEVELS" && preferences.achievement !== false) || // Legacy: achievement
+        (category === "REMINDERS" && preferences.system !== false)); // Legacy: system
+
+    if (!isEnabled) {
       return new Response(
         JSON.stringify({
           success: true,
           skipped: true,
-          reason: "User has disabled this notification type",
+          reason: "User has disabled this notification category",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -238,16 +260,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
           {
             method: "POST",
             headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
               "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get(
-                "INTERNAL_SERVICE_KEY"
-              ) || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             },
             body: JSON.stringify({
               userId: recipientId,
               title,
-              body: body || "",
-              data: { notificationId: notification.id, type, ...metadata },
+              body,
+              data: metadata,
+              notificationType: type, // C6: Pass notification type for category filtering
             }),
           }
         );

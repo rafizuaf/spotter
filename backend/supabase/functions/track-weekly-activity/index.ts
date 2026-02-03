@@ -230,6 +230,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       activityWeek.workouts_completed
     );
 
+    // C2: Restore rusty badges if workout meets criteria
+    const restoredBadges = await restoreRustyBadges(
+      supabaseAdmin,
+      userId,
+      workoutId,
+      weekStart
+    );
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -242,6 +250,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         },
         streaks: streakUpdates,
         perfectWeekBadges,
+        restoredBadges,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -433,6 +442,142 @@ async function updateStreaks(
   }
 
   return streakUpdates;
+}
+
+/**
+ * C2: Restore rusty badges if workout meets criteria
+ * 
+ * Restores badges that became rusty if the user completes a workout
+ * that meets the badge's criteria (e.g., weekly consistency badges
+ * are restored by any workout in the current week).
+ */
+async function restoreRustyBadges(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  workoutId: string,
+  weekStart: string
+): Promise<string[]> {
+  // Get all rusty badges for this user
+  const { data: rustyBadges, error: badgesError } = await supabase
+    .from("user_badges")
+    .select("achievement_code")
+    .eq("user_id", userId)
+    .eq("is_rusty", true)
+    .is("deleted_at", null);
+
+  if (badgesError || !rustyBadges || rustyBadges.length === 0) {
+    return [];
+  }
+
+  const restored: string[] = [];
+  const now = new Date().toISOString();
+
+  // Get workout details for badge criteria checks
+  const { data: workoutSets } = await supabase
+    .from("workout_sets")
+    .select(`
+      id,
+      is_pr,
+      exercises!inner(muscle_group)
+    `)
+    .eq("workout_id", workoutId)
+    .is("deleted_at", null);
+
+  const hasPR = workoutSets?.some((s: { is_pr: boolean }) => s.is_pr) || false;
+  const muscleGroups = new Set(
+    workoutSets?.map((s: { exercises: { muscle_group: string } }) => s.exercises.muscle_group) || []
+  );
+
+  // Get current week's workout count for weekly badges
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const { count: weekWorkoutCount } = await supabase
+    .from("workouts")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("started_at", weekStart)
+    .lt("started_at", weekEnd.toISOString())
+    .is("deleted_at", null);
+
+  for (const badge of rustyBadges) {
+    const code = badge.achievement_code;
+    let shouldRestore = false;
+
+    // Weekly consistency badges: Any workout in the current week restores it
+    if (
+      code.startsWith("WEEKLY_") ||
+      code === "CONSISTENCY_26" ||
+      code === "CONSISTENCY_52"
+    ) {
+      // Any workout this week restores weekly badges
+      shouldRestore = (weekWorkoutCount || 0) >= 1;
+    }
+    // Workout count badges: Any workout restores it
+    else if (
+      code === "FIRST_WORKOUT" ||
+      code.startsWith("WORKOUT_")
+    ) {
+      shouldRestore = true; // Any workout restores cumulative badges
+    }
+    // PR badges: Restore if workout has a PR
+    else if (code.startsWith("PR_") || code === "PR_FIRST") {
+      shouldRestore = hasPR;
+    }
+    // Muscle group badges: Restore if workout trains that muscle group
+    else if (
+      code.includes("CHEST") ||
+      code.includes("BACK") ||
+      code.includes("LEG") ||
+      code.includes("SHOULDER") ||
+      code.includes("ARM") ||
+      code.includes("CORE")
+    ) {
+      // Check if workout trains the relevant muscle group
+      const muscleGroupMap: Record<string, string[]> = {
+        CHEST: ["Chest"],
+        BACK: ["Back"],
+        LEG: ["Legs"],
+        SHOULDER: ["Shoulders"],
+        ARM: ["Biceps", "Triceps"],
+        CORE: ["Core"],
+      };
+
+      for (const [key, groups] of Object.entries(muscleGroupMap)) {
+        if (code.includes(key)) {
+          shouldRestore = groups.some((mg) => muscleGroups.has(mg));
+          break;
+        }
+      }
+    }
+    // Ranking badges: Skip (maintained by check-ranking-badges)
+    else if (code.startsWith("TOP_")) {
+      continue;
+    }
+    // Cumulative badges (volume, level): Any workout restores
+    else if (
+      code.startsWith("VOLUME_") ||
+      code.startsWith("LEVEL_")
+    ) {
+      shouldRestore = true;
+    }
+
+    if (shouldRestore) {
+      // Restore the badge
+      await supabase
+        .from("user_badges")
+        .update({
+          is_rusty: false,
+          last_maintained_at: now,
+          updated_at: now,
+        })
+        .eq("user_id", userId)
+        .eq("achievement_code", code);
+
+      restored.push(code);
+    }
+  }
+
+  return restored;
 }
 
 /**

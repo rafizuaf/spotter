@@ -86,6 +86,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ? new Date(lastPulledAt).toISOString()
       : new Date(0).toISOString();
 
+    // C3: Get user's subscription tier for history limits
+    const { data: entitlement } = await supabaseClient
+      .from("user_entitlements")
+      .select("tier, valid_until")
+      .eq("user_id", user.id)
+      .single();
+
+    const tier = entitlement?.tier ?? "FREE";
+    const isExpired = entitlement?.valid_until && new Date(entitlement.valid_until) < new Date();
+    const effectiveTier = isExpired ? "FREE" : tier;
+
     const changes: Record<string, TableChanges> = {};
     const currentTimestamp = Date.now();
 
@@ -137,6 +148,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // No additional filtering needed - RLS enforces visibility rules
       }
 
+      // C7: Special handling for routines - pull public routines and user's own routines
+      if (table === "routines") {
+        // RLS policy allows: user's own routines OR public routines
+        // No additional filtering needed - RLS handles this
+      }
+
       // Phase 2G: Special handling for post_reactions
       // RLS policy filters to reactions on visible posts automatically
       // We want user's reactions AND reactions on posts user can see
@@ -156,6 +173,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       // Get records updated since last pull
       query = query.gte("updated_at", lastPulledAtISO);
+
+      // C3: For FREE tier, limit workouts to last 30 days (rolling window)
+      // PRO/ELITE get unlimited history
+      if (table === "workouts" && effectiveTier === "FREE") {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        query = query.gte("started_at", thirtyDaysAgo.toISOString());
+      }
 
       // SECURITY: Add pagination limit to prevent unbounded queries
       // Prevents timeout/crash on first sync after long period

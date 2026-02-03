@@ -24,7 +24,8 @@ interface RestTimerState {
   hasCompleted: boolean;
 
   // User preferences (loaded from settings)
-  autoStart: boolean;
+  timerEnabled: boolean; // C4: Enable/disable timer entirely
+  autoStart: boolean; // C4: Auto-start after set completion
   vibrationEnabled: boolean;
   soundEnabled: boolean;
   defaultDuration: number;
@@ -39,6 +40,7 @@ interface RestTimerState {
   adjustTime: (delta: number) => void;
   setTargetSeconds: (seconds: number) => void;
   loadUserPreferences: (settings: {
+    timerEnabled: boolean; // C4: Enable/disable timer
     timerAutoStart: boolean;
     timerVibrationEnabled: boolean;
     timerSoundEnabled: boolean;
@@ -94,6 +96,7 @@ export const useRestTimerStore = create<RestTimerState>((set, get) => ({
   hasCompleted: false,
 
   // User preferences (defaults)
+  timerEnabled: true, // C4: Timer enabled by default
   autoStart: true,
   vibrationEnabled: true,
   soundEnabled: true,
@@ -101,6 +104,10 @@ export const useRestTimerStore = create<RestTimerState>((set, get) => ({
 
   startTimer: (seconds?: number, exerciseEntryId?: string, setId?: string) => {
     const state = get();
+    // C4: Don't start timer if disabled
+    if (!state.timerEnabled) {
+      return;
+    }
     const targetSeconds = seconds ?? state.defaultDuration;
 
     set({
@@ -199,6 +206,7 @@ export const useRestTimerStore = create<RestTimerState>((set, get) => ({
 
   loadUserPreferences: (settings) => {
     set({
+      timerEnabled: settings.timerEnabled ?? true, // C4: Default to enabled
       autoStart: settings.timerAutoStart,
       vibrationEnabled: settings.timerVibrationEnabled,
       soundEnabled: settings.timerSoundEnabled,

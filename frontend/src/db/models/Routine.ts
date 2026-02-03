@@ -15,6 +15,7 @@ export default class Routine extends Model {
   @text('name') name!: string;
   @text('notes') notes?: string;
   @field('is_public') isPublic!: boolean;
+  @field('usage_count') usageCount!: number; // C7: Number of times copied
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
   @date('deleted_at') deletedAt?: Date;

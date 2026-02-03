@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Q } from '@nozbe/watermelondb';
-import { workoutsCollection, workoutSetsCollection } from '../../src/db';
+import { workoutsCollection } from '../../src/db';
 import { useAuthStore } from '../../src/stores/authStore';
 import { getTier } from '../../src/services/exporters/exportLimits';
 import {
@@ -284,6 +284,14 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* C3: Show history limit for FREE tier */}
+      {tier === 'FREE' && workouts.length > 0 && (
+        <View style={[styles.historyLimitBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.historyLimitText, { color: colors.textSecondary }]}>
+            Showing last 30 days of workouts
+          </Text>
+        </View>
+      )}
       <FlashList
         data={workouts}
         renderItem={renderWorkout}
@@ -414,5 +422,14 @@ const styles = StyleSheet.create({
   },
   volumeKg: {
     fontSize: 14,
+  },
+  historyLimitBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  historyLimitText: {
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

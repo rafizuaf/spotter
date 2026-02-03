@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { database, workoutsCollection, workoutSetsCollection } from '../db';
+import { Alert } from 'react-native';
+import { database, workoutsCollection, workoutSetsCollection, exercisesCollection } from '../db';
 import { syncCritical, syncBackground, syncDatabase } from '../db/sync'; // A4: Use syncCritical for workout sync
 import { supabase } from '../services/supabase';
 import { v4 as uuid } from 'uuid';
@@ -7,7 +8,6 @@ import { Q } from '@nozbe/watermelondb';
 import type Workout from '../db/models/Workout';
 import type WorkoutSetModel from '../db/models/WorkoutSet';
 import { logError } from '../utils/errorHandler';
-import { trackEvent } from '../services/monitoring';
 import { announceForAccessibility } from '../utils/accessibility';
 import { useSyncStatusStore } from './syncStatusStore';
 import { CircuitOpenError } from '../utils/circuitBreaker';
@@ -83,12 +83,22 @@ interface WorkoutState {
   exercises: ExerciseEntry[];
   routineOriginId: string | null;
 
+  // C1: Undo state for set deletion
+  lastRemovedSet: {
+    exerciseEntryId: string;
+    set: WorkoutSet;
+    index: number;
+  } | null;
+
   // Actions
   startWorkout: (routineId?: string) => void;
+  startFromWorkout: (workoutId: string, copyWeights: boolean) => Promise<void>; // C5: Copy exercises from previous workout
   addExercise: (exerciseId: string, exerciseName: string) => void;
   removeExercise: (exerciseEntryId: string) => void;
   addSet: (exerciseEntryId: string) => void;
   removeSet: (exerciseEntryId: string, setId: string) => void;
+  undoRemoveSet: () => void;
+  clearUndoState: () => void;
   updateSet: (exerciseEntryId: string, setId: string, updates: Partial<WorkoutSet>) => void;
   toggleSetComplete: (exerciseEntryId: string, setId: string) => void;
   quickCompleteSet: (exerciseEntryId: string, setId: string, weight: string, reps: string) => void;
@@ -222,45 +232,6 @@ async function syncWorkoutInBackground(idempotencyKey?: string): Promise<void> {
   }
 }
 
-/**
- * Legacy sync function - throws errors (used by non-optimistic flows)
- * @deprecated Use syncWorkoutInBackground for optimistic UI flows
- */
-async function syncWorkout(idempotencyKey?: string): Promise<void> {
-  // A2: Single XP path - gamification (XP, level, PRs, badges, social post) runs server-side in sync-push
-  // A6: Pass idempotency key to prevent duplicate processing on retry
-  try {
-    await syncDatabase({ idempotencyKey });
-    
-    // Phase 2G: Update challenge scores after workout sync completes
-    const state = useWorkoutStore.getState();
-    const workoutId = state.workoutId;
-    if (workoutId) {
-      try {
-        await supabase.functions.invoke('update-challenge-scores', {
-          body: { workout_id: workoutId },
-        });
-      } catch (challengeError) {
-        logError(challengeError, 'workoutStore_challengeScoreUpdate');
-        // Don't fail workout completion if challenge update fails
-      }
-    }
-
-    // Pull updated gamification data (XP, levels, badges, PRs) from server
-    // This provides immediate feedback without blocking workout completion
-    try {
-      await syncDatabase();
-    } catch (pullError) {
-      logError(pullError, 'workoutStore_postSyncPull');
-      // Don't fail if pull fails - data will sync on next sync cycle
-    }
-  } catch (syncError) {
-    logError(syncError, 'workoutStore_postWorkoutSync');
-    // Don't fail the workout save if sync fails - it will sync later
-    throw syncError; // Re-throw so finishWorkout can handle it
-  }
-}
-
 export const useWorkoutStore = create<WorkoutState>((set, get) => {
   // Helper to derive backward-compatible fields from state
   const deriveFields = (state: WorkoutStateStatus) => {
@@ -308,6 +279,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
     // Backward-compatible fields (derived)
     ...deriveFields({ status: 'idle' }),
 
+    // C1: Undo state for set deletion
+    lastRemovedSet: null,
+
     startWorkout: (routineId?: string) => {
       const now = new Date();
       const newState: WorkoutStateStatus = {
@@ -323,7 +297,93 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
       set({
         workoutState: newState,
         ...deriveFields(newState),
+        lastRemovedSet: null, // C1: Clear undo state
       });
+    },
+
+    startFromWorkout: async (workoutId: string, copyWeights: boolean) => {
+      // C5: Copy exercises (and optionally weights) from a previous workout
+      try {
+        const workout = await workoutsCollection
+          .query(Q.where('id', workoutId))
+          .fetch();
+
+        if (workout.length === 0) {
+          throw new Error('Workout not found');
+        }
+
+        const sourceWorkout = workout[0] as Workout;
+        const sets = await sourceWorkout.sets.fetch();
+        const typedSets = sets as WorkoutSetModel[];
+
+        // Group sets by exercise
+        const exerciseMap = new Map<string, { exerciseId: string; exerciseName: string; sets: WorkoutSet[] }>();
+
+        for (const set of typedSets) {
+          if (!set.exerciseId) continue;
+
+          const exerciseId = set.exerciseId;
+          let exerciseName = 'Unknown Exercise';
+          try {
+            const exercise = await exercisesCollection.find(set.exerciseId);
+            exerciseName = exercise?.name ?? exerciseName;
+          } catch {
+            // Exercise may have been deleted
+          }
+
+          if (!exerciseMap.has(exerciseId)) {
+            exerciseMap.set(exerciseId, {
+              exerciseId,
+              exerciseName,
+              sets: [],
+            });
+          }
+
+          const entry = exerciseMap.get(exerciseId)!;
+          entry.sets.push({
+            id: uuid(),
+            exerciseId,
+            exerciseName,
+            weightKg: copyWeights ? String(set.weightKg || '') : '',
+            reps: copyWeights ? String(set.reps || '') : '',
+            rpe: copyWeights ? (set.rpe ? String(set.rpe) : undefined) : undefined,
+            rir: copyWeights ? (set.rir ? String(set.rir) : undefined) : undefined,
+            isFailure: copyWeights ? (set.isFailure || false) : false,
+            note: copyWeights ? set.note : undefined,
+            completed: false,
+            setOrderIndex: entry.sets.length,
+          });
+        }
+
+        // Convert map to ExerciseEntry array
+        const exercises: ExerciseEntry[] = Array.from(exerciseMap.values()).map((entry) => ({
+          id: uuid(),
+          exerciseId: entry.exerciseId,
+          name: entry.exerciseName,
+          sets: entry.sets,
+        }));
+
+        const now = new Date();
+        const newState: WorkoutStateStatus = {
+          status: 'active',
+          workoutId: uuid(),
+          workoutName: `Workout ${now.toLocaleDateString()}`,
+          workoutNote: '',
+          visibility: 'PUBLIC',
+          startTime: now,
+          exercises,
+          routineOriginId: null,
+        };
+
+        set({
+          workoutState: newState,
+          ...deriveFields(newState),
+          lastRemovedSet: null, // C1: Clear undo state
+        });
+      } catch (error) {
+        logError(error, 'workoutStore_startFromWorkout');
+        throw error;
+      }
     },
 
     addExercise: (exerciseId: string, exerciseName: string) => {
@@ -420,6 +480,18 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
       // B1: Only allow removing sets when active
       if (state.workoutState.status !== 'active') return state;
       
+      // C1: Store removed set for undo before removing
+      let removedSet: WorkoutSet | null = null;
+      let setIndex = -1;
+      const exercise = state.exercises.find((ex) => ex.id === exerciseEntryId);
+      if (exercise) {
+        const index = exercise.sets.findIndex((s) => s.id === setId);
+        if (index >= 0) {
+          removedSet = exercise.sets[index];
+          setIndex = index;
+        }
+      }
+      
       const updatedExercises = state.exercises.map((ex) => {
         if (ex.id === exerciseEntryId) {
           return {
@@ -436,8 +508,51 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
       return {
         workoutState: newState,
         ...deriveFields(newState),
+        // C1: Store removed set for undo (if found)
+        lastRemovedSet: removedSet && setIndex >= 0
+          ? { exerciseEntryId, set: removedSet, index: setIndex }
+          : null,
       };
     });
+  },
+
+  undoRemoveSet: () => {
+    set((state) => {
+      // C1: Only allow undo when active and there's a removed set
+      if (state.workoutState.status !== 'active' || !state.lastRemovedSet) return state;
+      
+      const { exerciseEntryId, set: removedSet, index } = state.lastRemovedSet;
+      
+      const updatedExercises = state.exercises.map((ex) => {
+        if (ex.id === exerciseEntryId) {
+          const newSets = [...ex.sets];
+          // Insert at original index
+          newSets.splice(index, 0, removedSet);
+          return {
+            ...ex,
+            sets: newSets,
+          };
+        }
+        return ex;
+      });
+      
+      const newState: WorkoutStateStatus = {
+        ...state.workoutState,
+        exercises: updatedExercises,
+      };
+      return {
+        workoutState: newState,
+        ...deriveFields(newState),
+        lastRemovedSet: null, // Clear undo state after undo
+      };
+    });
+  },
+
+  clearUndoState: () => {
+    set((state) => ({
+      ...state,
+      lastRemovedSet: null,
+    }));
   },
 
   updateSet: (exerciseEntryId: string, setId: string, updates: Partial<WorkoutSet>) => {
@@ -702,23 +817,44 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => {
   },
 
     cancelWorkout: () => {
-      // B1: Transition from active to idle
-      set((state) => {
-        if (state.workoutState.status !== 'active') {
-          // Already idle or in invalid state, reset to idle
-          const idleState: WorkoutStateStatus = { status: 'idle' };
-          return {
-            workoutState: idleState,
-            ...deriveFields(idleState),
-          };
-        }
-        
+      // C1: Require confirmation before discarding workout
+      const state = get();
+      if (state.workoutState.status !== 'active') {
+        // Already idle or in invalid state, reset to idle
         const idleState: WorkoutStateStatus = { status: 'idle' };
-        return {
+        set({
           workoutState: idleState,
           ...deriveFields(idleState),
-        };
-      });
+          lastRemovedSet: null, // Clear undo state
+        });
+        return;
+      }
+
+      // C1: Show confirmation dialog
+      Alert.alert(
+        'Discard Workout?',
+        "You can't undo this. All sets will be lost.",
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              // B1: Transition from active to idle
+              const idleState: WorkoutStateStatus = { status: 'idle' };
+              set({
+                workoutState: idleState,
+                ...deriveFields(idleState),
+                lastRemovedSet: null, // Clear undo state
+              });
+            },
+          },
+        ],
+        { cancelable: true }
+      );
     },
   };
 });

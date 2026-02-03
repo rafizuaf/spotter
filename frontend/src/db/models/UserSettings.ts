@@ -24,6 +24,7 @@ export default class UserSettings extends Model {
   @text('distance_unit_preference') distanceUnitPreference!: string;
   @text('theme_preference') themePreference!: string;
   @field('keep_screen_awake') keepScreenAwake!: boolean;
+  @field('timer_enabled') timerEnabled!: boolean; // C4: Enable/disable rest timer
   @field('timer_auto_start') timerAutoStart!: boolean;
   @field('timer_vibration_enabled') timerVibrationEnabled!: boolean;
   @field('timer_sound_enabled') timerSoundEnabled!: boolean;

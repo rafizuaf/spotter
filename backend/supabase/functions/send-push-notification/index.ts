@@ -23,6 +23,22 @@ interface SendPushRequest {
   title: string;
   body: string;
   data?: Record<string, unknown>;
+  notificationType?: string; // C6: Notification type for category filtering
+}
+
+// C6: Notification categories
+interface NotificationPreferences {
+  WORKOUT_PR?: boolean;
+  BADGES_LEVELS?: boolean;
+  CHALLENGES?: boolean;
+  SOCIAL?: boolean;
+  REMINDERS?: boolean;
+  // Legacy keys (for backward compatibility)
+  follow?: boolean;
+  achievement?: boolean;
+  pr?: boolean;
+  streak?: boolean;
+  system?: boolean;
 }
 
 interface ExpoPushMessage {
@@ -75,7 +91,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
 
     // Parse request
-    const { userId, title, body, data }: SendPushRequest = await req.json();
+    const { userId, title, body, data, notificationType }: SendPushRequest = await req.json();
 
     if (!userId || !title) {
       return new Response(
@@ -85,6 +101,75 @@ Deno.serve(async (req: Request): Promise<Response> => {
           headers: getResponseHeaders(corsHeaders),
         }
       );
+    }
+
+    // C6: Check user's notification preferences if notificationType is provided
+    if (notificationType) {
+      const { data: userSettings } = await supabaseAdmin
+        .from("user_settings")
+        .select("notification_preferences")
+        .eq("user_id", userId)
+        .single();
+
+      let preferences: NotificationPreferences = {
+        WORKOUT_PR: true,
+        BADGES_LEVELS: true,
+        CHALLENGES: true,
+        SOCIAL: true,
+        REMINDERS: true,
+      };
+
+      if (userSettings?.notification_preferences) {
+        try {
+          const parsed =
+            typeof userSettings.notification_preferences === "string"
+              ? JSON.parse(userSettings.notification_preferences)
+              : userSettings.notification_preferences;
+          preferences = { ...preferences, ...parsed };
+        } catch {
+          // Use defaults if parsing fails
+        }
+      }
+
+      // Map notification type to category
+      const typeToCategory: Record<string, keyof NotificationPreferences> = {
+        FOLLOW: "SOCIAL",
+        LIKE: "SOCIAL",
+        COMMENT: "SOCIAL",
+        PR: "WORKOUT_PR",
+        ACHIEVEMENT: "BADGES_LEVELS",
+        LEVEL_UP: "BADGES_LEVELS",
+        STREAK: "BADGES_LEVELS",
+        SYSTEM: "REMINDERS",
+        // Legacy mapping
+        follow: "SOCIAL",
+        achievement: "BADGES_LEVELS",
+        pr: "WORKOUT_PR",
+        streak: "BADGES_LEVELS",
+        system: "REMINDERS",
+      };
+
+      const category = typeToCategory[notificationType] || "REMINDERS";
+
+      // Check if user wants this category of notification
+      const isEnabled =
+        preferences[category] !== false &&
+        (preferences[category] === true ||
+          (category === "SOCIAL" && preferences.follow !== false) ||
+          (category === "WORKOUT_PR" && preferences.pr !== false) ||
+          (category === "BADGES_LEVELS" && preferences.achievement !== false) ||
+          (category === "REMINDERS" && preferences.system !== false));
+
+      if (!isEnabled) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            sent: 0,
+            reason: "User has disabled this notification category",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Get user's push tokens
